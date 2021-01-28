@@ -1,0 +1,10 @@
+# base
+click
+vpype
+python-opencv
+opensimplex
+tqdm
+
+# dev/test
+pytest
+black
