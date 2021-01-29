@@ -1,7 +1,9 @@
 # vpype flow imager
 
-[`vpype`](https://github.com/abey79/vpype) plug-in to [_to be completed_]
+![source image](https://github.com/serycjon/vpype-flow-imager/blob/master/examples/coffee.jpg?raw=true)
+![resulting image](https://github.com/serycjon/vpype-flow-imager/blob/master/examples/coffee_out.png?raw=true)
 
+[`vpype`](https://github.com/abey79/vpype) plug-in to convert images to flow field line art.
 
 ## Examples
 
@@ -20,7 +22,7 @@ Use this method if you have an existing `vpype` installation (typically in an ex
 want to make this plug-in available. You must activate your virtual environment beforehand.
 
 ```bash
-$ pip install git+https://github.com/abey79/vpype-flow-imager.git#egg=vpype-flow-imager
+$ pip install git+https://github.com/serycjon/vpype-flow-imager.git#egg=vpype-flow-imager
 ```
 
 Check that your install is successful:
@@ -37,7 +39,7 @@ Options:
 Commands:
 [...]
   Plugins:
-    vpype_flow_imager
+    flow_img
 [...]
 ```
 
@@ -46,7 +48,7 @@ Commands:
 Use this method if you need to edit this project. First, clone the project:
 
 ```bash
-$ git clone https://github.com/abey79/vpype-flow-imager.git
+$ git clone https://github.com/serycjon/vpype-flow-imager.git
 $ cd vpype-flow-imager
 ```
 
@@ -78,7 +80,7 @@ Options:
 Commands:
 [...]
   Plugins:
-    vpype_flow_imager
+    flow_img
 [...]
 ```
 
@@ -88,10 +90,11 @@ Commands:
 The complete plug-in documentation is available directly in the CLI help:
 
 ```bash
-$ vpype vpype_flow_imager --help
+$ vpype flow_img --help
 ```
 
 
 ## License
 
-See the [LICENSE](LICENSE) file for details.
+GNU GPLv3. See the [LICENSE](LICENSE) file for details.
+example coffee photo by [jannoon028](https://www.freepik.com/free-photo/cup-coffee-viewed-from_992559.htm)
