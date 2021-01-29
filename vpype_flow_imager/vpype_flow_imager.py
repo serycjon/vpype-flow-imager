@@ -57,16 +57,25 @@ def with_debugger(orig_fn):
     type=float,
     help="Maximum flowline separation (px in image resized to max side 800)",
 )
+@click.option(
+    "-Ml",
+    "--max_length",
+    default=40,
+    type=float,
+    help="Maximum flowline length (px in image resized to max side 800)",
+)
 @vp.generator
 @with_debugger
 def vpype_flow_imager(filename, noise_coeff, n_fields,
-                      min_sep, max_sep):
+                      min_sep, max_sep,
+                      max_length):
     """
     Insert documentation here...
     """
     gray_img = cv2.imread(filename, 0)
     numpy_paths = draw_image(gray_img, mult=noise_coeff, n_fields=n_fields,
-                             min_sep=min_sep, max_sep=max_sep)
+                             min_sep=min_sep, max_sep=max_sep,
+                             max_length=max_length)
 
     lc = vp.LineCollection()
     for path in numpy_paths:
@@ -99,7 +108,8 @@ def gen_flow_field(H, W, x_mult=1, y_mult=None):
 
 
 def draw_image(gray_img, mult, max_sz=800, n_fields=1,
-               min_sep=0.8, max_sep=10):
+               min_sep=0.8, max_sep=10,
+               max_length=40):
     gray = resize_to_max(gray_img, max_sz)
     H, W = gray.shape
 
@@ -118,7 +128,7 @@ def draw_image(gray_img, mult, max_sz=800, n_fields=1,
 
     paths = draw_fields_uniform(fields, d_sep_fn,
                                 seedpoints_per_path=40,
-                                guide=gray)
+                                guide=gray, max_length=max_length)
     return paths
 
 
