@@ -14,7 +14,6 @@ setup(
     long_description=readme,
     long_description_content_type="text/markdown",
     author="Jonas Serych",
-    url="",
     url="https://github.com/serycjon/vpype-flow-imager",
     license=license,
     packages=["vpype_flow_imager"],
