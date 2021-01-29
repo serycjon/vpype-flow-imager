@@ -1,9 +1,10 @@
 # base
 click
 vpype
-python-opencv
+opencv-python-headless  # headless not to conflict with QT versions
 opensimplex
 tqdm
+hnswlib
 
 # dev/test
 pytest

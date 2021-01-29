@@ -3,17 +3,18 @@ import numpy as np
 import cv2
 from opensimplex import OpenSimplex
 import tqdm
-from .kdtree import get_nearest, add_point, make_kd_tree, rebalance
+import hnswlib
 
 import click
 import vpype as vp
 
 import traceback
 import ipdb
-import sys
 
 eps = 1e-10
 
+# searcher = PyKDTree
+searcher = HNSWSearcher
 
 def with_debugger(orig_fn):
     def new_fn(*args, **kwargs):
@@ -125,10 +126,6 @@ def remap(x, src_min, src_max, dst_min, dst_max):
     return x_dst
 
 
-def dist_fn(x, y):
-    return np.sum(np.square(x - y))
-
-
 def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
                         seedpoints_per_path=10,
                         guide=None,
@@ -139,14 +136,12 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
 
     H, W = fields[0].shape[:2]
 
-    def should_stop(new_pos, kdtree, path, d_sep_fn):
+    def should_stop(new_pos, searcher, path, d_sep_fn):
         if not inside(np.round(new_pos), H, W):
             return True
-        if kdtree is not None:
+        if searcher is not None:
             point = new_pos.copy()
-            nearest = get_nearest(kdtree, point, dim=2,
-                                  dist_func=dist_fn,
-                                  return_distances=True)
+            nearest = searcher.get_nearest(point)
             dist, pt = nearest
             if dist < d_sep_fn(new_pos):
                 return True
@@ -168,7 +163,7 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
         #         return True
         return False
 
-    kdtree = make_kd_tree([np.array([-10, -10])], dim=2)
+    searcher = searcher([np.array([-10, -10])])
     paths = []
     rebalance_every = 500
     # save_every = 100
@@ -185,9 +180,7 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
                     if not inside(np.round(seed_pos), H, W):
                         continue
 
-                    dist, _ = get_nearest(kdtree, seed_pos, dim=2,
-                                          dist_func=dist_fn,
-                                          return_distances=True)
+                    dist, _ = searcher.get_nearest(seed_pos)
                     if dist < d_sep_fn(seed_pos):
                         continue
 
@@ -222,7 +215,7 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
 
             selector = MemorySelector(fields)
 
-            path = compute_streamline(selector.select_field, seed_pos, kdtree,
+            path = compute_streamline(selector.select_field, seed_pos, searcher,
                                       d_test_fn, d_sep_fn,
                                       should_stop_fn=should_stop)
             if len(path) <= 2:
@@ -231,12 +224,12 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
                 continue
 
             for pt in path:
-                add_point(kdtree, pt, dim=2)
+                searcher.add_point(pt)
             paths.append(np.array(path))
             if len(paths) % rebalance_every == 0:
-                kdtree = rebalance(kdtree, dim=2)
-            if len(paths) > 75:
-                break
+                searcher.rebalance()
+            # if len(paths) > 75:  # for debugging purposes
+            #     break
             # if len(paths) % save_every == 0:
             #     export_svg(paths, '/tmp/uniform_flow.svg')
 
@@ -260,7 +253,7 @@ def inside(xy_pt, H, W):
             xy_pt[1] < H)
 
 
-def compute_streamline(field_getter, seed_pos, kdtree, d_test_fn, d_sep_fn,
+def compute_streamline(field_getter, seed_pos, searcher, d_test_fn, d_sep_fn,
                        should_stop_fn):
     direction_sign = 1  # first go with the field
     pos = seed_pos.copy()
@@ -268,24 +261,23 @@ def compute_streamline(field_getter, seed_pos, kdtree, d_test_fn, d_sep_fn,
     path = [pos.copy()]
     path_length = 0
     stop_tracking = False
-    self_kdtree = make_kd_tree([(-20, -20)], dim=2)
+    self_searcher = searcher([(-20, -20)])
     while True:
         field = field_getter(path_length, direction_sign)
         rk_force = runge_kutta(field, pos, d_test_fn(pos)) * direction_sign
         new_pos = pos + d_test_fn(pos) * rk_force
 
         # test validity
-        if should_stop_fn(new_pos, kdtree, path, d_sep_fn):
+        if should_stop_fn(new_pos, searcher, path, d_sep_fn):
             stop_tracking = True
 
         # prevent soft looping
-        nearest_dist = get_nearest(self_kdtree, new_pos, dim=2,
-                                   dist_func=dist_fn, return_distances=True)[0]
+        nearest_dist, _ = self_searcher.get_nearest(new_pos)
         if nearest_dist < d_sep_fn(pos):
             stop_tracking = True
         lookback = 15
         if len(path) >= 2 * lookback:
-            add_point(self_kdtree, path[-lookback], dim=2)
+            self_searcher.add_point(path[-lookback])
 
         # fallback
         if len(path) >= 600:
@@ -303,7 +295,7 @@ def compute_streamline(field_getter, seed_pos, kdtree, d_test_fn, d_sep_fn,
                 pos = seed_pos.copy()
                 path = [pos.copy()]
                 path_length = 0
-                # self_kdtree = make_kd_tree([(-20, -20)], dim=2)
+                # self_searcher = searcher([(-20, -20)])
                 stop_tracking = False
             else:
                 # both directions finished
@@ -369,3 +361,25 @@ def resize_to_max(img, max_sz):
     return cv2.resize(img, None, fx=scale, fy=scale)
 
 
+class HNSWSearcher:
+    def __init__(self, points):
+        self.index = hnswlib.Index(space='l2', dim=2)
+        max_elements = 600000
+        self.index.init_index(max_elements=max_elements,
+                              ef_construction=200, M=16)
+        self.index.set_ef(50)
+        self.index.set_num_threads(4)
+        for point in points:
+            self.add_point(point)
+
+    def add_point(self, point):
+        to_insert = np.array(point).reshape(1, 2)
+        self.index.add_items(to_insert)
+
+    def rebalance(self):
+        pass
+
+    def get_nearest(self, query):
+        to_query = np.array(query).reshape(1, 2)
+        labels, distances = self.index.knn_query(to_query, k=1)
+        return distances, labels

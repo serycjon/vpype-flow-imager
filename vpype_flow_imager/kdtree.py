@@ -1,3 +1,50 @@
+import hnswlib
+import numpy as np
+def L2_dist(x, y):
+    return np.sum(np.square(x - y))
+
+
+class PyKDTree:
+    def __init__(self, points, dim=2):
+        self.dim = dim
+        self.tree = make_kd_tree(points, dim)
+
+    def add_point(self, point):
+        add_point(self.tree, point, dim=self.dim)
+
+    def rebalance(self):
+        self.tree = rebalance(self.tree, dim=self.dim)
+
+    def get_nearest(self, query):
+        dist, neighbor = get_nearest(self.tree, query, dim=self.dim,
+                                     dist_func=L2_dist,
+                                     return_distances=True)
+        return dist, neighbor
+
+
+class HNSWSearcher:
+    def __init__(self, points):
+        self.index = hnswlib.Index(space='l2', dim=2)
+        max_elements = 600000
+        self.index.init_index(max_elements=max_elements, ef_construction=200, M=16)
+        self.index.set_ef(50)
+        self.index.set_num_threads(4)
+        for point in points:
+            self.add_point(point)
+
+    def add_point(self, point):
+        to_insert = np.array(point).reshape(1, 2)
+        self.index.add_items(to_insert)
+
+    def rebalance(self):
+        pass
+
+    def get_nearest(self, query):
+        to_query = np.array(query).reshape(1, 2)
+        labels, distances = self.index.knn_query(to_query, k=1)
+        return distances, labels
+
+    
 """
 from https://github.com/Vectorized/Python-KD-Tree (CC0 license), with added tree rebalancing
 
