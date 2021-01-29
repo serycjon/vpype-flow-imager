@@ -35,16 +35,24 @@ def with_debugger(orig_fn):
     "--noise_coeff",
     default=0.001,
     type=float,
-    help="Simplex noise coordinate multiplier.  The smaller, the smoother the flow field.",
+    help=("Simplex noise coordinate multiplier. "
+          "The smaller, the smoother the flow field."),
+)
+@click.option(
+    "-nf",
+    "--n_fields",
+    default=1,
+    type=int,
+    help="Number of rotated copies of the flow field",
 )
 @vp.generator
 @with_debugger
-def vpype_flow_imager(filename, noise_coeff):
+def vpype_flow_imager(filename, noise_coeff, n_fields):
     """
     Insert documentation here...
     """
     gray_img = cv2.imread(filename, 0)
-    numpy_paths = draw_image(gray_img, mult=noise_coeff)
+    numpy_paths = draw_image(gray_img, mult=noise_coeff, n_fields=n_fields)
     lc = vp.LineCollection()
     for path in numpy_paths:
         lc.append(path[:, 0] + path[:, 1] * 1.j)
@@ -75,18 +83,16 @@ def gen_flow_field(H, W, x_mult=1, y_mult=None):
     return field
 
 
-def draw_image(gray_img, mult, max_sz=800):
+def draw_image(gray_img, mult, max_sz=800, n_fields=1):
     gray = resize_to_max(gray_img, max_sz)
     H, W = gray.shape
 
     field = gen_flow_field(H, W, x_mult=mult)
-    fields = [VectorField(field),
-              # VectorField(rotate_field(field, 60)),
-              # VectorField(rotate_field(field, 120)),
-              # VectorField(rotate_field(field, 180)),
-              # VectorField(rotate_field(field, 240)),
-              # VectorField(rotate_field(field, 300)),
-              ]
+    fields = [VectorField(field)]
+    if n_fields > 1:
+        angles = np.linspace(0, 360, n_fields + 1)
+        for angle in angles:
+            fields.append(VectorField(rotate_field(field, angle)))
 
     def d_sep_fn(pos):
         x, y = fit_inside(np.round(pos), gray).astype(np.int32)
@@ -111,6 +117,13 @@ class VectorField():
         round_pos = fit_inside(round_pos, self.field)
 
         return self.field[round_pos[1], round_pos[0], :]
+
+
+def rotate_field(field, degrees):
+    s, c = np.sin(np.radians(degrees)), np.cos(np.radians(degrees))
+    R = np.array([[c, -s],
+                  [s, c]])
+    return np.matmul(R, field.reshape(-1, 2).T).T.reshape(field.shape)
 
 
 def fit_inside(xy, img):
