@@ -13,8 +13,6 @@ import ipdb
 
 eps = 1e-10
 
-# searcher = PyKDTree
-searcher = HNSWSearcher
 
 def with_debugger(orig_fn):
     def new_fn(*args, **kwargs):
@@ -45,14 +43,31 @@ def with_debugger(orig_fn):
     type=int,
     help="Number of rotated copies of the flow field",
 )
+@click.option(
+    "-ms",
+    "--min_sep",
+    default=0.8,
+    type=float,
+    help="Minimum flowline separation (px in image resized to max side 800)",
+)
+@click.option(
+    "-Ms",
+    "--max_sep",
+    default=10,
+    type=float,
+    help="Maximum flowline separation (px in image resized to max side 800)",
+)
 @vp.generator
 @with_debugger
-def vpype_flow_imager(filename, noise_coeff, n_fields):
+def vpype_flow_imager(filename, noise_coeff, n_fields,
+                      min_sep, max_sep):
     """
     Insert documentation here...
     """
     gray_img = cv2.imread(filename, 0)
-    numpy_paths = draw_image(gray_img, mult=noise_coeff, n_fields=n_fields)
+    numpy_paths = draw_image(gray_img, mult=noise_coeff, n_fields=n_fields,
+                             min_sep=min_sep, max_sep=max_sep)
+
     lc = vp.LineCollection()
     for path in numpy_paths:
         lc.append(path[:, 0] + path[:, 1] * 1.j)
@@ -83,7 +98,8 @@ def gen_flow_field(H, W, x_mult=1, y_mult=None):
     return field
 
 
-def draw_image(gray_img, mult, max_sz=800, n_fields=1):
+def draw_image(gray_img, mult, max_sz=800, n_fields=1,
+               min_sep=0.8, max_sep=10):
     gray = resize_to_max(gray_img, max_sz)
     H, W = gray.shape
 
@@ -98,7 +114,7 @@ def draw_image(gray_img, mult, max_sz=800, n_fields=1):
         x, y = fit_inside(np.round(pos), gray).astype(np.int32)
         val = gray[y, x] / 255
         val = val**2
-        return remap(val, 0, 1, 0.8, 10)
+        return remap(val, 0, 1, min_sep, max_sep)
 
     paths = draw_fields_uniform(fields, d_sep_fn,
                                 seedpoints_per_path=40,
@@ -176,7 +192,7 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
         #         return True
         return False
 
-    searcher = searcher([np.array([-10, -10])])
+    searcher = HNSWSearcher([np.array([-10, -10])])
     paths = []
     rebalance_every = 500
     # save_every = 100
@@ -228,7 +244,8 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
 
             selector = MemorySelector(fields)
 
-            path = compute_streamline(selector.select_field, seed_pos, searcher,
+            path = compute_streamline(selector.select_field, seed_pos,
+                                      searcher,
                                       d_test_fn, d_sep_fn,
                                       should_stop_fn=should_stop)
             if len(path) <= 2:
@@ -274,7 +291,7 @@ def compute_streamline(field_getter, seed_pos, searcher, d_test_fn, d_sep_fn,
     path = [pos.copy()]
     path_length = 0
     stop_tracking = False
-    self_searcher = searcher([(-20, -20)])
+    self_searcher = HNSWSearcher([(-20, -20)])
     while True:
         field = field_getter(path_length, direction_sign)
         rk_force = runge_kutta(field, pos, d_test_fn(pos)) * direction_sign
