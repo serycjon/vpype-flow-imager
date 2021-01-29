@@ -411,5 +411,6 @@ class HNSWSearcher:
 
     def get_nearest(self, query):
         to_query = np.array(query).reshape(1, 2)
-        labels, distances = self.index.knn_query(to_query, k=1)
+        labels, distances_sq = self.index.knn_query(to_query, k=1)
+        distances = np.sqrt(distances_sq)
         return distances, labels
