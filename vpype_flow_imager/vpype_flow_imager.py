@@ -23,22 +23,7 @@ import hnswlib
 import click
 import vpype as vp
 
-import traceback
-import ipdb
-
 eps = 1e-10
-
-
-def with_debugger(orig_fn):
-    def new_fn(*args, **kwargs):
-        try:
-            return orig_fn(*args, **kwargs)
-        except Exception as e:
-            print(traceback.format_exc())
-            print(e)
-            ipdb.post_mortem()
-
-    return new_fn
 
 
 @click.command("flow_img")
@@ -80,7 +65,6 @@ def with_debugger(orig_fn):
     help="Maximum flowline length (px in image resized to max side 800)",
 )
 @vp.generator
-@with_debugger
 def vpype_flow_imager(filename, noise_coeff, n_fields,
                       min_sep, max_sep,
                       max_length):
