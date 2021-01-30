@@ -13,6 +13,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+import os
+import tempfile
 from collections import deque
 import numpy as np
 import cv2
@@ -428,7 +430,7 @@ class HNSWSearcher:
         self.index.add_items(to_insert)
 
     def resize_index(self):
-        index_path = "hnsw_searcher_index.bin"
+        handle, index_path = tempfile.mkstemp()
         self.index.save_index(index_path)
         del self.index
 
@@ -436,6 +438,7 @@ class HNSWSearcher:
         self.max_elements = 2 * self.max_elements
         self.index.load_index(index_path, max_elements=self.max_elements)
         logger.debug(f'Resizing searcher index to {self.max_elements}')
+        os.remove(index_path)
 
     def get_nearest(self, query):
         to_query = np.array(query).reshape(1, 2)
