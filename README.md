@@ -4,93 +4,68 @@
 
 [`vpype`](https://github.com/abey79/vpype) plug-in to convert images to flow field line art.
 
-## Examples
+## Getting Started
 
-_to be completed_
-
-
-## Installation
-
-See the [installation instructions](https://vpype.readthedocs.io/en/stable/install.html) for information on how
-to install `vpype`.
-
-
-### Existing `vpype` installation
-
-Use this method if you have an existing `vpype` installation (typically in an existing virtual environment) and you
-want to make this plug-in available. You must activate your virtual environment beforehand.
+Install `vpype flow imager` with the following command, ideally in a virtual environment:
 
 ```bash
 $ pip install git+https://github.com/serycjon/vpype-flow-imager.git#egg=vpype-flow-imager
 ```
 
-Check that your install is successful:
+`vpype` is automatically installed with `vpype flow imager`, so no further steps are required.
 
-```
-$ vpype --help
-Usage: vpype [OPTIONS] COMMAND1 [ARGS]... [COMMAND2 [ARGS]...]...
-
-Options:
-  -v, --verbose
-  -I, --include PATH  Load commands from a command file.
-  --help              Show this message and exit.
-
-Commands:
-[...]
-  Plugins:
-    flow_img
-[...]
-```
-
-### Stand-alone installation
-
-Use this method if you need to edit this project. First, clone the project:
-
-```bash
-$ git clone https://github.com/serycjon/vpype-flow-imager.git
-$ cd vpype-flow-imager
-```
-
-Create a virtual environment:
-
-```bash
-$ python3 -m venv venv
-$ source venv/bin/activate
-$ pip install --upgrade pip
-```
-
-Install `vpype-flow-imager` and its dependencies (including `vpype`):
-
-```bash
-$ pip install -e .
-```
-
-Check that your install is successful:
-
-```
-$ vpype --help
-Usage: vpype [OPTIONS] COMMAND1 [ARGS]... [COMMAND2 [ARGS]...]...
-
-Options:
-  -v, --verbose
-  -I, --include PATH  Load commands from a command file.
-  --help              Show this message and exit.
-
-Commands:
-[...]
-  Plugins:
-    flow_img
-[...]
-```
-
-
-## Documentation
-
-The complete plug-in documentation is available directly in the CLI help:
+You can confirm that the installation was successful with the following command, which also happens to tell you all
+you need to know to use `vpype flow imager`:
 
 ```bash
 $ vpype flow_img --help
+Usage: vpype flow_img [OPTIONS] FILENAME
+
+  Generate flowline representation from an image.
+
+  The generated flowlines are in the coordinates of the input image, resized
+  to have dimensions at most `--max_size` pixels.
+
+Options:
+  -nc, --noise_coeff FLOAT  Simplex noise coordinate multiplier. The smaller,
+                            the smoother the flow field.
+
+  -nf, --n_fields INTEGER   Number of rotated copies of the flow field
+  -ms, --min_sep FLOAT      Minimum flowline separation
+  -Ms, --max_sep FLOAT      Maximum flowline separation
+  -Ml, --max_length FLOAT   Maximum flowline length
+  --max_size INTEGER        The input image will be rescaled to have sides at
+                            most max_size px
+
+  -l, --layer LAYER         Target layer or 'new'.
+  --help                    Show this message and exit.
 ```
+
+To create a SVG, combine the `flow_img` command with the `write` command (check `vpype`'s documentation for more
+information). Here is an example:
+
+```bash
+$ vpype flow_img input.jpg write output.svg
+```
+
+## Examples
+
+The example output was generated with:
+```bash
+$ cd examples
+$ vpype flow_img -nf 6 coffee.jpg write coffee_out.svg show
+```
+It took around 3 minutes on my laptop.
+In this example, the flow field was rotated 6 times to get hexagonal structure in the result.
+
+The default:
+```bash
+$ vpype flow_img coffee.jpg write coffee_out.svg show
+```
+produces a smoother result like:
+<img src="https://github.com/serycjon/vpype-flow-imager/blob/master/examples/coffee_single.png?raw=true" width="300" />
+
+You can control the result line density by changing the `--min_sep` and `--max_sep` parameters.
 
 
 ## License
