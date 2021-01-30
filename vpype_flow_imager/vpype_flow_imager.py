@@ -51,33 +51,43 @@ eps = 1e-10
     "--min_sep",
     default=0.8,
     type=float,
-    help="Minimum flowline separation (px in image resized to max side 800)",
+    help="Minimum flowline separation",
 )
 @click.option(
     "-Ms",
     "--max_sep",
     default=10,
     type=float,
-    help="Maximum flowline separation (px in image resized to max side 800)",
+    help="Maximum flowline separation",
 )
 @click.option(
     "-Ml",
     "--max_length",
     default=40,
     type=float,
-    help="Maximum flowline length (px in image resized to max side 800)",
+    help="Maximum flowline length",
+)
+@click.option(
+    "--max_size",
+    default=800,
+    type=int,
+    help="The input image will be rescaled to have sides at most max_size px",
 )
 @vp.generator
 def vpype_flow_imager(filename, noise_coeff, n_fields,
                       min_sep, max_sep,
-                      max_length):
+                      max_length, max_size):
     """
-    Insert documentation here...
+    Generate flowline representation from an image.
+
+    The generated flowlines are in the coordinates of the input image,
+    resized to have dimensions at most `--max_size` pixels.
     """
     gray_img = cv2.imread(filename, 0)
     numpy_paths = draw_image(gray_img, mult=noise_coeff, n_fields=n_fields,
                              min_sep=min_sep, max_sep=max_sep,
-                             max_length=max_length)
+                             max_length=max_length,
+                             max_img_size=max_size)
 
     lc = vp.LineCollection()
     for path in numpy_paths:
@@ -89,6 +99,7 @@ vpype_flow_imager.help_group = "Plugins"
 
 
 def gen_flow_field(H, W, x_mult=1, y_mult=None):
+    logger.info('Generating flow field')
     if y_mult is None:
         y_mult = x_mult
     x_noise = OpenSimplex(np.random.randint(9393931))
@@ -103,16 +114,16 @@ def gen_flow_field(H, W, x_mult=1, y_mult=None):
                 x_val /= norm
                 y_val /= norm
             else:
-                x_val, y_val = 0, 0
+                x_val, y_val = 1, 0
             field[y, x, :] = (x_val, y_val)
 
     return field
 
 
-def draw_image(gray_img, mult, max_sz=800, n_fields=1,
+def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
                min_sep=0.8, max_sep=10,
                max_length=40):
-    gray = resize_to_max(gray_img, max_sz)
+    gray = resize_to_max(gray_img, max_img_size)
     H, W = gray.shape
 
     field = gen_flow_field(H, W, x_mult=mult)
@@ -171,6 +182,7 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
                         seedpoints_per_path=10,
                         guide=None,
                         max_length=20):
+    logger.info('Drawing flowlines')
     if d_test_fn is None:
         def d_test_fn(*args, **kwargs):
             return d_sep_fn(*args, **kwargs) / 2
