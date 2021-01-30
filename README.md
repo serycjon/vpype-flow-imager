@@ -2,7 +2,7 @@
 
 <img src="https://github.com/serycjon/vpype-flow-imager/blob/master/examples/coffee.jpg?raw=true" width="300" /> <img src="https://github.com/serycjon/vpype-flow-imager/blob/master/examples/coffee_out.png?raw=true" width="300" />
 
-[`vpype`](https://github.com/abey79/vpype) plug-in to convert images to flow field line art.
+[`vpype`](https://github.com/abey79/vpype) plug-in to convert images to flow field line art inspired by Sean M. Puckett's work and the "Creating evenly-spaced streamlines of arbitrary density" paper by Jobard and Lefer.
 
 ## Getting Started
 
