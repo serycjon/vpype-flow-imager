@@ -1,6 +1,6 @@
 # vpype flow imager
 
-<img src="https://github.com/serycjon/vpype-flow-imager/blob/master/examples/coffee.jpg?raw=true" width="300" alt="source image"/> <img src="https://github.com/serycjon/vpype-flow-imager/blob/master/examples/coffee_out.png?raw=true" width="300" alt="resulting image"/>
+<img src="https://github.com/serycjon/vpype-flow-imager/blob/master/examples/coffee.jpg?raw=true" width="300" /> <img src="https://github.com/serycjon/vpype-flow-imager/blob/master/examples/coffee_out.png?raw=true" width="300" />
 
 [`vpype`](https://github.com/abey79/vpype) plug-in to convert images to flow field line art.
 
