@@ -23,6 +23,9 @@ import hnswlib
 import click
 import vpype as vp
 
+import logging
+logger = logging.getLogger(__name__)
+
 eps = 1e-10
 
 
@@ -201,10 +204,9 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
         #         return True
         return False
 
-    searcher = HNSWSearcher([np.array([-10, -10])])
+    searcher = HNSWSearcher([np.array([-10, -10])],
+                            max_elements=64000)
     paths = []
-    rebalance_every = 500
-    # save_every = 100
     seed_pos = np.array((W / 2, H / 2))
     seedpoints = [seed_pos]
     seedpoints = deque(seedpoints)
@@ -265,12 +267,8 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
             for pt in path:
                 searcher.add_point(pt)
             paths.append(np.array(path))
-            if len(paths) % rebalance_every == 0:
-                searcher.rebalance()
             # if len(paths) > 75:  # for debugging purposes
             #     break
-            # if len(paths) % save_every == 0:
-            #     export_svg(paths, '/tmp/uniform_flow.svg')
 
             new_seedpoints = generate_seedpoints(path, d_sep_fn,
                                                  seedpoints_per_path)
@@ -401,10 +399,10 @@ def resize_to_max(img, max_sz):
 
 
 class HNSWSearcher:
-    def __init__(self, points):
+    def __init__(self, points, max_elements=1000):
         self.index = hnswlib.Index(space='l2', dim=2)
-        max_elements = 600000
-        self.index.init_index(max_elements=max_elements,
+        self.max_elements = max_elements
+        self.index.init_index(max_elements=self.max_elements,
                               ef_construction=200, M=16)
         self.index.set_ef(50)
         self.index.set_num_threads(4)
@@ -412,11 +410,20 @@ class HNSWSearcher:
             self.add_point(point)
 
     def add_point(self, point):
+        if self.index.get_current_count() == self.max_elements:
+            self.resize_index()
         to_insert = np.array(point).reshape(1, 2)
         self.index.add_items(to_insert)
 
-    def rebalance(self):
-        pass
+    def resize_index(self):
+        index_path = "hnsw_searcher_index.bin"
+        self.index.save_index(index_path)
+        del self.index
+
+        self.index = hnswlib.Index(space='l2', dim=2)
+        self.max_elements = 2 * self.max_elements
+        self.index.load_index(index_path, max_elements=self.max_elements)
+        logger.debug(f'Resizing searcher index to {self.max_elements}')
 
     def get_nearest(self, query):
         to_query = np.array(query).reshape(1, 2)
