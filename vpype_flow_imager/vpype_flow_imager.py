@@ -138,8 +138,8 @@ def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
             fields.append(VectorField(rotate_field(field, angle)))
 
     def d_sep_fn(pos):
-        x, y = fit_inside(np.round(pos), gray).astype(np.int32)
-        val = gray[y, x] / 255
+        x, y = fit_inside(np.round(pos), gray)
+        val = gray[int(y), int(x)] / 255
         val = val**2
         return remap(val, 0, 1, min_sep, max_sep)
 
@@ -202,15 +202,8 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
             dist, pt = nearest
             if dist < d_sep_fn(new_pos):
                 return True
-        # compute streamline length
-        length = 0
-        cur = path[0]
 
-        for pt in path:
-            length += norm_2vec(cur - pt)
-            cur = pt
-
-        if length > max_length:
+        if path.line_length > max_length:
             return True
 
         # look for loops
@@ -311,12 +304,12 @@ def compute_streamline(field_getter, seed_pos, searcher, d_test_fn, d_sep_fn,
     direction_sign = 1  # first go with the field
     pos = seed_pos.copy()
     paths = []
-    path = [pos.copy()]
-    path_length = 0
+    path = LinePath()
+    path.append(pos.copy())
     stop_tracking = False
     self_searcher = HNSWSearcher([(-20, -20)])
     while True:
-        field = field_getter(path_length, direction_sign)
+        field = field_getter(path.line_length, direction_sign)
         rk_force = runge_kutta(field, pos, d_test_fn(pos)) * direction_sign
         new_pos = pos + d_test_fn(pos) * rk_force
 
@@ -338,16 +331,15 @@ def compute_streamline(field_getter, seed_pos, searcher, d_test_fn, d_sep_fn,
 
         if not stop_tracking:
             path.append(new_pos.copy())
-            path_length += norm_2vec(pos - new_pos)
 
         if stop_tracking:
-            paths.append(path)
+            paths.append(path.data)
             if direction_sign == 1:
                 # go to the other side from the seed
                 direction_sign = -1
                 pos = seed_pos.copy()
-                path = [pos.copy()]
-                path_length = 0
+                path = LinePath()
+                path.append(pos.copy())
                 # self_searcher = searcher([(-20, -20)])
                 stop_tracking = False
             else:
@@ -444,3 +436,22 @@ class HNSWSearcher:
         labels, distances_sq = self.index.knn_query(to_query, k=1)
         distances = np.sqrt(distances_sq)
         return distances, labels
+
+
+class LinePath:
+    ''' wrapper around list of coordinates, that keeps current path length '''
+
+    def __init__(self):
+        self.data = []
+        self.line_length = 0
+
+    def append(self, point):
+        self.data.append(point)
+        if len(self.data) > 1:
+            self.line_length += norm_2vec(self.data[-2] - self.data[-1])
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, i):
+        return self.data[i]
