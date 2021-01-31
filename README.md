@@ -6,9 +6,12 @@
 
 ## Getting Started
 
-Install `vpype flow imager` with the following command, ideally in a virtual environment:
+Install `vpype flow imager` with the following command, ideally in a virtual environment
+
 
 ```bash
+$ python3.8 -m venv my_virtual_env
+$ source my_virtual_env/bin/activate
 $ pip install git+https://github.com/serycjon/vpype-flow-imager.git#egg=vpype-flow-imager
 ```
 
