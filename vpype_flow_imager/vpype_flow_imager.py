@@ -98,6 +98,10 @@ def vpype_flow_imager(filename, noise_coeff, n_fields,
 vpype_flow_imager.help_group = "Plugins"
 
 
+def norm_2vec(x):
+    return np.sqrt(x[0]**2 + x[1]**2)
+
+
 def gen_flow_field(H, W, x_mult=1, y_mult=None):
     logger.info('Generating flow field')
     if y_mult is None:
@@ -203,7 +207,7 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
         cur = path[0]
 
         for pt in path:
-            length += np.linalg.norm(cur - pt)
+            length += norm_2vec(cur - pt)
             cur = pt
 
         if length > max_length:
@@ -334,7 +338,7 @@ def compute_streamline(field_getter, seed_pos, searcher, d_test_fn, d_sep_fn,
 
         if not stop_tracking:
             path.append(new_pos.copy())
-            path_length += np.linalg.norm(pos - new_pos)
+            path_length += norm_2vec(pos - new_pos)
 
         if stop_tracking:
             paths.append(path)
@@ -365,7 +369,7 @@ def generate_seedpoints(path, d_sep_fn, N_seedpoints=10):
 
     cur_xy = path[0]
     direction = path[1] - path[0]
-    direction /= max(np.linalg.norm(direction), eps)
+    direction /= max(norm_2vec(direction), eps)
     normal = np.array((direction[1], -direction[0]))
     margin = 1.1
     seeds.append(cur_xy + margin * d_sep_fn(cur_xy) * normal)
@@ -377,7 +381,7 @@ def generate_seedpoints(path, d_sep_fn, N_seedpoints=10):
         last_xy = cur_xy.copy()
         cur_xy = path[i]
         direction = cur_xy - last_xy
-        direction /= max(np.linalg.norm(direction), eps)
+        direction /= max(norm_2vec(direction), eps)
         normal = np.array((direction[1], -direction[0]))
         seeds.append(cur_xy + margin * d_sep_fn(cur_xy) * normal)
         seeds.append(cur_xy - margin * d_sep_fn(cur_xy) * normal)
