@@ -40,6 +40,10 @@ Options:
   --max_size INTEGER        The input image will be rescaled to have sides at
                             most max_size px
 
+  -s, --seed INTEGER        PRNG seed (overriding vpype seed)
+  -fs, --flow_seed INTEGER  Flow field PRNG seed (overriding the main
+                            `--seed`)
+
   -l, --layer LAYER         Target layer or 'new'.
   --help                    Show this message and exit.
 ```
@@ -70,6 +74,11 @@ produces a smoother result like:
 
 You can control the result line density by changing the `--min_sep` and `--max_sep` parameters.
 
+You can also locally override the vpype PRNG seed using the `--seed` and `--flow_seed` parameters.  The `--flow_seed` is used only in the flow field construction, so if you want to create a multi-layer svg (e.g. CMYK), you can do something like
+```bash
+vpype flow_img -fs 42 -l 1 C.jpg flow_img -fs 42 -l 2 M.jpg flow_img -fs 42 -l 3 Y.jpg flow_img -fs 42 -l 4 K.jpg write --layer-label "Pen%d" cmyk.svg show
+```
+By specifying the same `-fs` (`--flow_seed`) for all the layers, you will get the same flowline directions on all the layers.
 
 ## License
 

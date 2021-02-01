@@ -19,6 +19,7 @@ import cv2
 from opensimplex import OpenSimplex
 import tqdm
 import hnswlib
+import contextlib
 
 import click
 import vpype as vp
@@ -73,10 +74,18 @@ eps = 1e-10
     type=int,
     help="The input image will be rescaled to have sides at most max_size px",
 )
+@click.option(
+    "-s", "--seed", type=int, help="PRNG seed (overriding vpype seed)"
+)
+@click.option(
+    "-fs", "--flow_seed", type=int,
+    help="Flow field PRNG seed (overriding the main `--seed`)"
+)
 @vp.generator
 def vpype_flow_imager(filename, noise_coeff, n_fields,
                       min_sep, max_sep,
-                      max_length, max_size):
+                      max_length, max_size,
+                      seed, flow_seed):
     """
     Generate flowline representation from an image.
 
@@ -84,10 +93,11 @@ def vpype_flow_imager(filename, noise_coeff, n_fields,
     resized to have dimensions at most `--max_size` pixels.
     """
     gray_img = cv2.imread(filename, 0)
-    numpy_paths = draw_image(gray_img, mult=noise_coeff, n_fields=n_fields,
-                             min_sep=min_sep, max_sep=max_sep,
-                             max_length=max_length,
-                             max_img_size=max_size)
+    with tmp_np_seed(seed):
+        numpy_paths = draw_image(gray_img, mult=noise_coeff, n_fields=n_fields,
+                                 min_sep=min_sep, max_sep=max_sep,
+                                 max_length=max_length,
+                                 max_img_size=max_size, flow_seed=flow_seed)
 
     lc = vp.LineCollection()
     for path in numpy_paths:
@@ -126,11 +136,12 @@ def gen_flow_field(H, W, x_mult=1, y_mult=None):
 
 def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
                min_sep=0.8, max_sep=10,
-               max_length=40):
+               max_length=40, flow_seed=None):
     gray = resize_to_max(gray_img, max_img_size)
     H, W = gray.shape
 
-    field = gen_flow_field(H, W, x_mult=mult)
+    with tmp_np_seed(flow_seed):
+        field = gen_flow_field(H, W, x_mult=mult)
     fields = [VectorField(field)]
     if n_fields > 1:
         angles = np.linspace(0, 360, n_fields + 1)
@@ -455,3 +466,16 @@ class LinePath:
 
     def __getitem__(self, i):
         return self.data[i]
+
+
+@contextlib.contextmanager
+def tmp_np_seed(seed):
+    if seed is None:
+        yield
+    else:
+        state = np.random.get_state()
+        np.random.seed(seed)
+        try:
+            yield
+        finally:
+            np.random.set_state(state)
