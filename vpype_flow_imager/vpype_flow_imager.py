@@ -62,6 +62,13 @@ eps = 1e-10
     help="Maximum flowline separation",
 )
 @click.option(
+    "-ml",
+    "--min_length",
+    default=0,
+    type=float,
+    help="Minimum flowline length",
+)
+@click.option(
     "-Ml",
     "--max_length",
     default=40,
@@ -84,7 +91,7 @@ eps = 1e-10
 @vp.generator
 def vpype_flow_imager(filename, noise_coeff, n_fields,
                       min_sep, max_sep,
-                      max_length, max_size,
+                      min_length, max_length, max_size,
                       seed, flow_seed):
     """
     Generate flowline representation from an image.
@@ -96,7 +103,7 @@ def vpype_flow_imager(filename, noise_coeff, n_fields,
     with tmp_np_seed(seed):
         numpy_paths = draw_image(gray_img, mult=noise_coeff, n_fields=n_fields,
                                  min_sep=min_sep, max_sep=max_sep,
-                                 max_length=max_length,
+                                 min_length=min_length, max_length=max_length,
                                  max_img_size=max_size, flow_seed=flow_seed)
 
     lc = vp.LineCollection()
@@ -136,7 +143,8 @@ def gen_flow_field(H, W, x_mult=1, y_mult=None):
 
 def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
                min_sep=0.8, max_sep=10,
-               max_length=40, flow_seed=None):
+               min_length=0, max_length=40,
+               flow_seed=None):
     gray = resize_to_max(gray_img, max_img_size)
     H, W = gray.shape
 
@@ -156,7 +164,8 @@ def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
 
     paths = draw_fields_uniform(fields, d_sep_fn,
                                 seedpoints_per_path=40,
-                                guide=gray, max_length=max_length)
+                                guide=gray,
+                                min_length=min_length, max_length=max_length)
     return paths
 
 
@@ -196,7 +205,7 @@ def remap(x, src_min, src_max, dst_min, dst_max):
 def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
                         seedpoints_per_path=10,
                         guide=None,
-                        max_length=20):
+                        min_length=0, max_length=20):
     logger.info('Drawing flowlines')
     if d_test_fn is None:
         def d_test_fn(*args, **kwargs):
@@ -205,6 +214,9 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
     H, W = fields[0].shape[:2]
 
     def should_stop(new_pos, searcher, path, d_sep_fn):
+        if path.line_length < min_length:
+            return False
+
         if not inside(np.round(new_pos), H, W):
             return True
         if searcher is not None:
