@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 eps = 1e-10
 
 
-@click.command("flow_img")
+@click.command("flow_img", context_settings={'show_default': True})
 @click.argument("filename", type=click.Path(exists=True))
 @click.option(
     "-nc",
