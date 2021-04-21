@@ -9,7 +9,7 @@ with open("LICENSE") as f:
 
 setup(
     name="vpype-flow-imager",
-    version="0.1.4",
+    version="0.1.5",
     description="Convert images to flow field line art.",
     long_description=readme,
     long_description_content_type="text/markdown",
