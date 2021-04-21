@@ -371,7 +371,7 @@ def compute_streamline(field_getter, seed_pos, searcher, d_test_fn, d_sep_fn,
         else:
             pos = new_pos
     singleline = list(reversed(paths[1]))
-    singleline.extend(paths[0])
+    singleline.extend(paths[0][1:])
 
     return singleline
 
