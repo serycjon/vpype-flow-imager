@@ -95,11 +95,16 @@ eps = 1e-10
     "-fs", "--flow_seed", type=int,
     help="Flow field PRNG seed (overriding the main `--seed`)"
 )
+@click.option(
+    "-tf", "--test_frequency", type=float,
+    help="Number of separation tests per current flowline separation",
+)
 @vp.generator
 def vpype_flow_imager(filename, noise_coeff, n_fields,
                       min_sep, max_sep,
                       min_length, max_length, max_size,
-                      seed, flow_seed, search_ef):
+                      seed, flow_seed, search_ef,
+                      test_frequency):
     """
     Generate flowline representation from an image.
 
@@ -112,7 +117,7 @@ def vpype_flow_imager(filename, noise_coeff, n_fields,
                                  min_sep=min_sep, max_sep=max_sep,
                                  min_length=min_length, max_length=max_length,
                                  max_img_size=max_size, flow_seed=flow_seed,
-                                 search_ef=search_ef)
+                                 search_ef=search_ef, test_frequency=test_frequency)
 
     lc = vp.LineCollection()
     for path in numpy_paths:
@@ -153,7 +158,7 @@ def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
                min_sep=0.8, max_sep=10,
                min_length=0, max_length=40,
                flow_seed=None,
-               search_ef=50):
+               search_ef=50, test_frequency=2):
     gray = resize_to_max(gray_img, max_img_size)
     H, W = gray.shape
 
@@ -175,7 +180,7 @@ def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
                                 seedpoints_per_path=40,
                                 guide=gray,
                                 min_length=min_length, max_length=max_length,
-                                search_ef=search_ef)
+                                search_ef=search_ef, test_frequency=test_frequency)
     return paths
 
 
@@ -216,11 +221,11 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
                         seedpoints_per_path=10,
                         guide=None,
                         min_length=0, max_length=20,
-                        search_ef=50):
+                        search_ef=50, test_frequency=2):
     logger.info('Drawing flowlines')
     if d_test_fn is None:
         def d_test_fn(*args, **kwargs):
-            return d_sep_fn(*args, **kwargs) / 2
+            return d_sep_fn(*args, **kwargs) / test_frequency
 
     H, W = fields[0].shape[:2]
 
