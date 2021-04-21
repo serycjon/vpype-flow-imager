@@ -82,6 +82,13 @@ eps = 1e-10
     help="The input image will be rescaled to have sides at most max_size px",
 )
 @click.option(
+    "--search_ef",
+    "-ef",
+    default=50,
+    type=int,
+    help="HNSWlib search ef (higher -> more accurate, but slower)",
+)
+@click.option(
     "-s", "--seed", type=int, help="PRNG seed (overriding vpype seed)"
 )
 @click.option(
@@ -92,7 +99,7 @@ eps = 1e-10
 def vpype_flow_imager(filename, noise_coeff, n_fields,
                       min_sep, max_sep,
                       min_length, max_length, max_size,
-                      seed, flow_seed):
+                      seed, flow_seed, search_ef):
     """
     Generate flowline representation from an image.
 
@@ -104,7 +111,8 @@ def vpype_flow_imager(filename, noise_coeff, n_fields,
         numpy_paths = draw_image(gray_img, mult=noise_coeff, n_fields=n_fields,
                                  min_sep=min_sep, max_sep=max_sep,
                                  min_length=min_length, max_length=max_length,
-                                 max_img_size=max_size, flow_seed=flow_seed)
+                                 max_img_size=max_size, flow_seed=flow_seed,
+                                 search_ef=search_ef)
 
     lc = vp.LineCollection()
     for path in numpy_paths:
@@ -144,7 +152,8 @@ def gen_flow_field(H, W, x_mult=1, y_mult=None):
 def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
                min_sep=0.8, max_sep=10,
                min_length=0, max_length=40,
-               flow_seed=None):
+               flow_seed=None,
+               search_ef=50):
     gray = resize_to_max(gray_img, max_img_size)
     H, W = gray.shape
 
@@ -165,7 +174,8 @@ def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
     paths = draw_fields_uniform(fields, d_sep_fn,
                                 seedpoints_per_path=40,
                                 guide=gray,
-                                min_length=min_length, max_length=max_length)
+                                min_length=min_length, max_length=max_length,
+                                search_ef=search_ef)
     return paths
 
 
@@ -205,7 +215,8 @@ def remap(x, src_min, src_max, dst_min, dst_max):
 def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
                         seedpoints_per_path=10,
                         guide=None,
-                        min_length=0, max_length=20):
+                        min_length=0, max_length=20,
+                        search_ef=50):
     logger.info('Drawing flowlines')
     if d_test_fn is None:
         def d_test_fn(*args, **kwargs):
@@ -237,7 +248,8 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
         return False
 
     searcher = HNSWSearcher([np.array([-10, -10])],
-                            max_elements=64000)
+                            max_elements=64000,
+                            search_ef=search_ef)
     paths = []
     seed_pos = np.array((W / 2, H / 2))
     seedpoints = [seed_pos]
@@ -298,9 +310,7 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
 
             for pt in path:
                 searcher.add_point(pt)
-            paths.append(np.array(path))
-            # if len(paths) > 75:  # for debugging purposes
-            #     break
+            paths.append(path)
 
             new_seedpoints = generate_seedpoints(path, d_sep_fn,
                                                  seedpoints_per_path)
@@ -430,12 +440,13 @@ def resize_to_max(img, max_sz):
 
 
 class HNSWSearcher:
-    def __init__(self, points, max_elements=1000):
+    def __init__(self, points, max_elements=1000, search_ef=50):
         self.index = hnswlib.Index(space='l2', dim=2)
         self.max_elements = max_elements
         self.index.init_index(max_elements=self.max_elements,
                               ef_construction=200, M=16)
-        self.index.set_ef(50)
+        self.search_ef = search_ef
+        self.index.set_ef(search_ef)
         self.index.set_num_threads(4)
         for point in points:
             self.add_point(point)
@@ -453,6 +464,7 @@ class HNSWSearcher:
         logger.info('after resize:')
         logger.info(f"self.index.max_elements: {self.index.max_elements}")
         logger.info(f"self.index.element_count: {self.index.element_count}")
+        self.index.set_ef(self.search_ef)
 
     def get_nearest(self, query):
         to_query = np.array(query).reshape(1, 2)
