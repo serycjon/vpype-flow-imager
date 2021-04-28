@@ -9,7 +9,7 @@ with open("LICENSE") as f:
 
 setup(
     name="vpype-flow-imager",
-    version="0.1.6",
+    version="0.1.6-nohnsw",
     description="Convert images to flow field line art.",
     long_description=readme,
     long_description_content_type="text/markdown",
@@ -23,7 +23,6 @@ setup(
         'opencv-python-headless',  # headless not to conflict with QT versions in vpype show
         'opensimplex',
         'tqdm',
-        'hnswlib>=0.5.0',
     ],
     entry_points='''
             [vpype.plugins]

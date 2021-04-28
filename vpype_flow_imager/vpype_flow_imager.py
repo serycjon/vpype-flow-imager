@@ -18,8 +18,8 @@ import numpy as np
 import cv2
 from opensimplex import OpenSimplex
 import tqdm
-import hnswlib
 import contextlib
+from .kdtree import KDTSearcher
 
 import click
 import vpype as vp
@@ -82,13 +82,6 @@ eps = 1e-10
     help="The input image will be rescaled to have sides at most max_size px",
 )
 @click.option(
-    "--search_ef",
-    "-ef",
-    default=50,
-    type=int,
-    help="HNSWlib search ef (higher -> more accurate, but slower)",
-)
-@click.option(
     "-s", "--seed", type=int, help="PRNG seed (overriding vpype seed)"
 )
 @click.option(
@@ -103,7 +96,7 @@ eps = 1e-10
 def vpype_flow_imager(filename, noise_coeff, n_fields,
                       min_sep, max_sep,
                       min_length, max_length, max_size,
-                      seed, flow_seed, search_ef,
+                      seed, flow_seed,
                       test_frequency):
     """
     Generate flowline representation from an image.
@@ -117,7 +110,7 @@ def vpype_flow_imager(filename, noise_coeff, n_fields,
                                  min_sep=min_sep, max_sep=max_sep,
                                  min_length=min_length, max_length=max_length,
                                  max_img_size=max_size, flow_seed=flow_seed,
-                                 search_ef=search_ef, test_frequency=test_frequency)
+                                 test_frequency=test_frequency)
 
     lc = vp.LineCollection()
     for path in numpy_paths:
@@ -158,7 +151,7 @@ def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
                min_sep=0.8, max_sep=10,
                min_length=0, max_length=40,
                flow_seed=None,
-               search_ef=50, test_frequency=2):
+               test_frequency=2):
     gray = resize_to_max(gray_img, max_img_size)
     H, W = gray.shape
 
@@ -180,7 +173,7 @@ def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
                                 seedpoints_per_path=40,
                                 guide=gray,
                                 min_length=min_length, max_length=max_length,
-                                search_ef=search_ef, test_frequency=test_frequency)
+                                test_frequency=test_frequency)
     return paths
 
 
@@ -221,7 +214,7 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
                         seedpoints_per_path=10,
                         guide=None,
                         min_length=0, max_length=20,
-                        search_ef=50, test_frequency=2):
+                        test_frequency=2):
     logger.info('Drawing flowlines')
     if d_test_fn is None:
         def d_test_fn(*args, **kwargs):
@@ -252,9 +245,7 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
         #         return True
         return False
 
-    searcher = HNSWSearcher([np.array([-10, -10])],
-                            max_elements=64000,
-                            search_ef=search_ef)
+    searcher = KDTSearcher([np.array([-10, -10])])
     paths = []
     seed_pos = np.array((W / 2, H / 2))
     seedpoints = [seed_pos]
@@ -345,7 +336,7 @@ def compute_streamline(field_getter, seed_pos, searcher, d_test_fn, d_sep_fn,
     path = LinePath()
     path.append(pos.copy())
     stop_tracking = False
-    self_searcher = HNSWSearcher([(-20, -20)])
+    self_searcher = KDTSearcher([(-20, -20)])
     while True:
         field = field_getter(path.line_length, direction_sign)
         rk_force = runge_kutta(field, pos, d_test_fn(pos)) * direction_sign
@@ -443,40 +434,6 @@ def resize_to_max(img, max_sz):
 
     scale = min(H_scale, W_scale)
     return cv2.resize(img, None, fx=scale, fy=scale)
-
-
-class HNSWSearcher:
-    def __init__(self, points, max_elements=1000, search_ef=50):
-        self.index = hnswlib.Index(space='l2', dim=2)
-        self.max_elements = max_elements
-        self.index.init_index(max_elements=self.max_elements,
-                              ef_construction=200, M=16)
-        self.search_ef = search_ef
-        self.index.set_ef(search_ef)
-        self.index.set_num_threads(4)
-        for point in points:
-            self.add_point(point)
-
-    def add_point(self, point):
-        if self.index.element_count == self.max_elements:
-            self.resize_index()
-        to_insert = np.array(point).reshape(1, 2)
-        self.index.add_items(to_insert)
-
-    def resize_index(self):
-        self.max_elements = 2 * self.max_elements
-        logger.info(f'Resizing searcher index to {self.max_elements}')
-        self.index.resize_index(self.max_elements)
-        logger.info('after resize:')
-        logger.info(f"self.index.max_elements: {self.index.max_elements}")
-        logger.info(f"self.index.element_count: {self.index.element_count}")
-        self.index.set_ef(self.search_ef)
-
-    def get_nearest(self, query):
-        to_query = np.array(query).reshape(1, 2)
-        labels, distances_sq = self.index.knn_query(to_query, k=1)
-        distances = np.sqrt(distances_sq)
-        return distances, labels
 
 
 class LinePath:
