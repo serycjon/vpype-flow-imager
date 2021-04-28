@@ -1,6 +1,6 @@
 import numpy as np
 def L2_dist(x, y):
-    return np.sum(np.square(x - y))
+    return np.sqrt(np.sum(np.square(x - y)))
 
 
 class KDTSearcher:
