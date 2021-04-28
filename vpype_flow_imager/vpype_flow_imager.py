@@ -96,7 +96,7 @@ eps = 1e-10
     help="Flow field PRNG seed (overriding the main `--seed`)"
 )
 @click.option(
-    "-tf", "--test_frequency", type=float,
+    "-tf", "--test_frequency", type=float, default=2,
     help="Number of separation tests per current flowline separation",
 )
 @vp.generator
