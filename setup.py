@@ -8,8 +8,8 @@ with open("LICENSE") as f:
     license = f.read()
 
 setup(
-    name="vpype-flow-imager",
-    version="0.1.6-nohnsw",
+    name="vpype-flow-imager-nohnsw",
+    version="0.1.6",
     description="Convert images to flow field line art.",
     long_description=readme,
     long_description_content_type="text/markdown",
