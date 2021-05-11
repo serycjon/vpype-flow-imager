@@ -133,7 +133,6 @@ def norm_2vec(x):
 
 
 def gen_flow_field(H, W, x_mult=1, y_mult=None):
-    logger.info('Generating flow field')
     if y_mult is None:
         y_mult = x_mult
     x_noise = OpenSimplex(np.random.randint(9393931))
@@ -159,9 +158,11 @@ def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
                min_length=0, max_length=40,
                flow_seed=None,
                search_ef=50, test_frequency=2):
+    logger.debug(f"gray_img.shape: {gray_img.shape}")
     gray = resize_to_max(gray_img, max_img_size)
     H, W = gray.shape
 
+    logger.info('Generating flow field')
     with tmp_np_seed(flow_seed):
         field = gen_flow_field(H, W, x_mult=mult)
     fields = [VectorField(field)]
@@ -176,6 +177,7 @@ def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
         val = val**2
         return remap(val, 0, 1, min_sep, max_sep)
 
+    logger.info('Drawing flowlines')
     paths = draw_fields_uniform(fields, d_sep_fn,
                                 seedpoints_per_path=40,
                                 guide=gray,
@@ -222,7 +224,6 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
                         guide=None,
                         min_length=0, max_length=20,
                         search_ef=50, test_frequency=2):
-    logger.info('Drawing flowlines')
     if d_test_fn is None:
         def d_test_fn(*args, **kwargs):
             return d_sep_fn(*args, **kwargs) / test_frequency
@@ -465,11 +466,11 @@ class HNSWSearcher:
 
     def resize_index(self):
         self.max_elements = 2 * self.max_elements
-        logger.info(f'Resizing searcher index to {self.max_elements}')
+        logger.debug(f'Resizing searcher index to {self.max_elements}')
         self.index.resize_index(self.max_elements)
-        logger.info('after resize:')
-        logger.info(f"self.index.max_elements: {self.index.max_elements}")
-        logger.info(f"self.index.element_count: {self.index.element_count}")
+        logger.debug('after resize:')
+        logger.debug(f"self.index.max_elements: {self.index.max_elements}")
+        logger.debug(f"self.index.element_count: {self.index.element_count}")
         self.index.set_ef(self.search_ef)
 
     def get_nearest(self, query):
