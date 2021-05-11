@@ -24,6 +24,7 @@ setup(
         'opensimplex',
         'tqdm',
         'hnswlib>=0.5.0',
+        'scikit-image',
     ],
     entry_points='''
             [vpype.plugins]

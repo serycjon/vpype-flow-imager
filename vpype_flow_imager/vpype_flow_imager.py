@@ -99,25 +99,46 @@ eps = 1e-10
     "-tf", "--test_frequency", type=float, default=2,
     help="Number of separation tests per current flowline separation",
 )
+@click.option(
+    "-f", "--field_type",
+    type=click.Choice(['noise', 'curl_noise'], case_sensitive=False),
+    help="flow field type")
+@click.option(
+    "--transparent_val", type=click.IntRange(0, 255), default=127,
+    help="Value to replace transparent pixels")
+@click.option(
+    "-efm", "--edge_field_multiplier", type=float, default=None,
+    help="flow along image edges")
+@click.option(
+    "-dfm", "--dark_field_multiplier", type=float, default=None,
+    help="flow swirling around dark image areas")
 @vp.generator
 def vpype_flow_imager(filename, noise_coeff, n_fields,
                       min_sep, max_sep,
                       min_length, max_length, max_size,
                       seed, flow_seed, search_ef,
-                      test_frequency):
+                      test_frequency,
+                      field_type, transparent_val,
+                      edge_field_multiplier, dark_field_multiplier):
     """
     Generate flowline representation from an image.
 
     The generated flowlines are in the coordinates of the input image,
     resized to have dimensions at most `--max_size` pixels.
     """
-    gray_img = cv2.imread(filename, 0)
+    gray_img = cv2.imread(filename, cv2.IMREAD_UNCHANGED)
     with tmp_np_seed(seed):
         numpy_paths = draw_image(gray_img, mult=noise_coeff, n_fields=n_fields,
                                  min_sep=min_sep, max_sep=max_sep,
                                  min_length=min_length, max_length=max_length,
                                  max_img_size=max_size, flow_seed=flow_seed,
-                                 search_ef=search_ef, test_frequency=test_frequency)
+                                 search_ef=search_ef,
+                                 test_frequency=test_frequency,
+                                 field_type=field_type,
+                                 transparent_val=transparent_val,
+                                 edge_field_multiplier=edge_field_multiplier,
+                                 dark_field_multiplier=dark_field_multiplier,
+                                 )
 
     lc = vp.LineCollection()
     for path in numpy_paths:
@@ -153,36 +174,128 @@ def gen_flow_field(H, W, x_mult=1, y_mult=None):
     return field
 
 
+def gen_curl_flow_field(H, W, x_mult=1, y_mult=None):
+    if y_mult is None:
+        y_mult = x_mult
+    noise = OpenSimplex(np.random.randint(9393931))
+    field = np.zeros((H, W), dtype=np.float64)
+    for y in range(H):
+        for x in range(W):
+            val = noise.noise2d(x=x_mult * x, y=x_mult * y)
+            field[y, x] = val
+
+    grad_y, grad_x = np.gradient(field)
+    field = np.stack((grad_y, -grad_x), axis=2)
+    field = normalize_flow_field(field)
+
+    return field
+
+
+def gen_edge_flow_field(H, W, intensities):
+    from scipy.ndimage import distance_transform_edt
+    edges = cv2.Canny(intensities, 100, 200)
+    variable_mask = edges <= 0
+    grad_y, grad_x = np.gradient(intensities)
+    field = np.stack((grad_y, -grad_x), axis=2)
+    field = normalize_flow_field(field)
+    field[variable_mask, :] = 0
+
+    for i in range(35):
+        k_sz = 15
+        new_field = cv2.blur(field, (k_sz, k_sz))
+        field[variable_mask, :] = new_field[variable_mask, :]
+
+    weights = distance_transform_edt(1 - edges)
+    weights = weights[:, :, np.newaxis].astype(np.float32)
+    max_dist = 60
+    weights = (max_dist - np.clip(weights, 0, max_dist)) / max_dist
+    return normalize_flow_field(field), weights
+
+
+def gen_darkness_curl_flow_field(H, W, intensities):
+    assert len(intensities.shape) == 2
+    blur_kernel = 2 * 87 + 1
+    heights = cv2.GaussianBlur(intensities.astype(np.float32),
+                               (blur_kernel, blur_kernel), 0)
+
+    grad_y, grad_x = np.gradient(heights)
+
+    field = np.stack((grad_y, -grad_x), axis=2)
+    weights = 1 - (intensities[:, :, np.newaxis].astype(np.float32) / 255)
+    return normalize_flow_field(field), weights
+
+
+def normalize_flow_field(field):
+    norm = np.sqrt(np.sum(field ** 2, axis=2)).reshape(*field.shape[:2], 1)
+    return field / (norm + 1e-10)
+
+
 def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
                min_sep=0.8, max_sep=10,
                min_length=0, max_length=40,
                flow_seed=None,
-               search_ef=50, test_frequency=2):
+               search_ef=50, test_frequency=2,
+               transparent_val=127,
+               field_type='noise',
+               edge_field_multiplier=None, dark_field_multiplier=None):
     logger.debug(f"gray_img.shape: {gray_img.shape}")
     gray = resize_to_max(gray_img, max_img_size)
-    H, W = gray.shape
+    logger.debug(f"gray.shape: {gray.shape}")
+    H, W, C = gray.shape
+    if C == 4:
+        data_mask = gray[:, :, 3] > 0
+    else:
+        data_mask = np.ones((H, W)) > 0
+
+    background_mask = np.logical_not(data_mask)
+    gray = cv2.cvtColor(gray[:, :, :3], cv2.COLOR_BGR2GRAY)
+    gray[background_mask] = transparent_val
 
     logger.info('Generating flow field')
     with tmp_np_seed(flow_seed):
-        field = gen_flow_field(H, W, x_mult=mult)
+        if field_type == 'curl_noise':
+            noise_field = gen_curl_flow_field(H, W, x_mult=mult)
+        else:
+            noise_field = gen_flow_field(H, W, x_mult=mult)
+
+    field = np.zeros_like(noise_field)
+    weights = np.zeros_like(noise_field)
+
+    if edge_field_multiplier is not None:
+        edge_field, edge_weights = gen_edge_flow_field(H, W, gray)
+        field += edge_weights * edge_field * edge_field_multiplier
+        weights += edge_weights * edge_field_multiplier
+
+    if dark_field_multiplier is not None:
+        dark_field, dark_weights = gen_darkness_curl_flow_field(H, W, gray)
+        field += dark_weights * dark_field * dark_field_multiplier
+        weights += dark_weights * dark_field_multiplier
+
+    field += np.clip(1 - weights, 0, 1) * noise_field
+
+    field[background_mask, :] = noise_field[background_mask, :]
+    field = normalize_flow_field(field)
     fields = [VectorField(field)]
     if n_fields > 1:
         angles = np.linspace(0, 360, n_fields + 1)
         for angle in angles:
             fields.append(VectorField(rotate_field(field, angle)))
 
+    guide = gray
+
     def d_sep_fn(pos):
-        x, y = fit_inside(np.round(pos), gray)
-        val = gray[int(y), int(x)] / 255
+        x, y = fit_inside(np.round(pos), guide)
+        val = guide[int(y), int(x)] / 255
         val = val**2
         return remap(val, 0, 1, min_sep, max_sep)
 
     logger.info('Drawing flowlines')
     paths = draw_fields_uniform(fields, d_sep_fn,
                                 seedpoints_per_path=40,
-                                guide=gray,
+                                guide=guide,
                                 min_length=min_length, max_length=max_length,
-                                search_ef=search_ef, test_frequency=test_frequency)
+                                search_ef=search_ef,
+                                test_frequency=test_frequency)
     return paths
 
 
