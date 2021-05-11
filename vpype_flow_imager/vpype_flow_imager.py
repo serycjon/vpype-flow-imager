@@ -407,6 +407,12 @@ def generate_seedpoints(path, d_sep_fn, N_seedpoints=10):
     seeds.append(cur_xy + margin * d_sep_fn(cur_xy) * normal)
     seeds.append(cur_xy - margin * d_sep_fn(cur_xy) * normal)
 
+    seeds.append(cur_xy - margin * d_sep_fn(cur_xy) * direction)
+    seeds.append(cur_xy - margin * d_sep_fn(cur_xy) * direction +
+                 margin * d_sep_fn(cur_xy) * normal)
+    seeds.append(cur_xy - margin * d_sep_fn(cur_xy) * direction -
+                 margin * d_sep_fn(cur_xy) * normal)
+
     for i in range(1, len(path)):
         if i not in seedpoint_ids:
             continue
@@ -417,6 +423,12 @@ def generate_seedpoints(path, d_sep_fn, N_seedpoints=10):
         normal = np.array((direction[1], -direction[0]))
         seeds.append(cur_xy + margin * d_sep_fn(cur_xy) * normal)
         seeds.append(cur_xy - margin * d_sep_fn(cur_xy) * normal)
+
+    seeds.append(cur_xy + margin * d_sep_fn(cur_xy) * direction)
+    seeds.append(cur_xy + margin * d_sep_fn(cur_xy) * direction +
+                 margin * d_sep_fn(cur_xy) * normal)
+    seeds.append(cur_xy + margin * d_sep_fn(cur_xy) * direction -
+                 margin * d_sep_fn(cur_xy) * normal)
 
     return seeds
 
