@@ -241,6 +241,9 @@ def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
     logger.debug(f"gray_img.shape: {gray_img.shape}")
     gray = resize_to_max(gray_img, max_img_size)
     logger.debug(f"gray.shape: {gray.shape}")
+    if len(gray.shape) == 2:
+        gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
     H, W, C = gray.shape
     if C == 4:
         data_mask = gray[:, :, 3] > 0
