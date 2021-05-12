@@ -205,9 +205,9 @@ def gen_edge_flow_field(H, W, intensities):
         new_field = cv2.blur(field, (k_sz, k_sz))
         field[variable_mask, :] = new_field[variable_mask, :]
 
-    weights = distance_transform_edt(1 - edges)
+    weights = distance_transform_edt(edges == 0)
     weights = weights[:, :, np.newaxis].astype(np.float32)
-    max_dist = 60
+    max_dist = 100
     weights = (max_dist - np.clip(weights, 0, max_dist)) / max_dist
     return normalize_flow_field(field), weights
 
