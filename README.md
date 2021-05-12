@@ -30,22 +30,43 @@ Usage: vpype flow_img [OPTIONS] FILENAME
   to have dimensions at most `--max_size` pixels.
 
 Options:
-  -nc, --noise_coeff FLOAT  Simplex noise coordinate multiplier. The smaller,
-                            the smoother the flow field.
+  -nc, --noise_coeff FLOAT        Simplex noise coordinate multiplier. The
+                                  smaller, the smoother the flow field.
+                                  [default: 0.001]
 
-  -nf, --n_fields INTEGER   Number of rotated copies of the flow field
-  -ms, --min_sep FLOAT      Minimum flowline separation
-  -Ms, --max_sep FLOAT      Maximum flowline separation
-  -Ml, --max_length FLOAT   Maximum flowline length
-  --max_size INTEGER        The input image will be rescaled to have sides at
-                            most max_size px
+  -nf, --n_fields INTEGER         Number of rotated copies of the flow field
+                                  [default: 1]
 
-  -s, --seed INTEGER        PRNG seed (overriding vpype seed)
-  -fs, --flow_seed INTEGER  Flow field PRNG seed (overriding the main
-                            `--seed`)
+  -ms, --min_sep FLOAT            Minimum flowline separation  [default: 0.8]
+  -Ms, --max_sep FLOAT            Maximum flowline separation  [default: 10]
+  -ml, --min_length FLOAT         Minimum flowline length  [default: 0]
+  -Ml, --max_length FLOAT         Maximum flowline length  [default: 40]
+  --max_size INTEGER              The input image will be rescaled to have
+                                  sides at most max_size px  [default: 800]
 
-  -l, --layer LAYER         Target layer or 'new'.
-  --help                    Show this message and exit.
+  -ef, --search_ef INTEGER        HNSWlib search ef (higher -> more accurate,
+                                  but slower)  [default: 50]
+
+  -s, --seed INTEGER              PRNG seed (overriding vpype seed)
+  -fs, --flow_seed INTEGER        Flow field PRNG seed (overriding the main
+                                  `--seed`)
+
+  -tf, --test_frequency FLOAT     Number of separation tests per current
+                                  flowline separation  [default: 2]
+
+  -f, --field_type [noise|curl_noise]
+                                  flow field type [default: noise]
+  --transparent_val INTEGER RANGE
+                                  Value to replace transparent pixels
+                                  [default: 127]
+
+  -efm, --edge_field_multiplier FLOAT
+                                  flow along image edges
+  -dfm, --dark_field_multiplier FLOAT
+                                  flow swirling around dark image areas
+  -l, --layer LAYER               Target layer or 'new'.
+  --help                          Show this message and exit.  [default:
+                                  False]
 ```
 
 To create a SVG, combine the `flow_img` command with the `write` command (check `vpype`'s documentation for more
@@ -70,6 +91,7 @@ The default:
 $ vpype flow_img coffee.jpg write coffee_out.svg show
 ```
 produces a smoother result like:
+
 <img src="https://github.com/serycjon/vpype-flow-imager/blob/master/examples/coffee_single.png?raw=true" width="300" />
 
 You can control the result line density by changing the `--min_sep` and `--max_sep` parameters.
@@ -80,6 +102,25 @@ vpype flow_img -fs 42 -l 1 C.jpg flow_img -fs 42 -l 2 M.jpg flow_img -fs 42 -l 3
 ```
 By specifying the same `-fs` (`--flow_seed`) for all the layers, you will get the same flowline directions on all the layers.
 
+The following is an example with `curl_noise` and `dark_field` enabled:
+```bash
+vpype -v -s 42 flow_img -f curl_noise -dfm 1 -nc 0.03 examples/coffee.jpg write examples/coffee_dark.svg
+```
+
+<img src="https://github.com/serycjon/vpype-flow-imager/blob/master/examples/coffee_dark.png?raw=true" width="300" />
+
+## Parameters
+Starting from the most interesting / useful:
+* `min_sep`, `max_sep` - Control the flowline density (separation between flowlines)
+* `min_length`, `max_length` - Control the flowline length.  (setting `min_length > 0` breaks the flowline density constraints)
+* `field_type` - Set to `noise` (default) to get opensimplex noise flow field, set to `curl_noise` to get curly flow field.
+* `n_fields` - Number of rotated copies of the flow field (default: 1). For example, try out 3, 4, or 6 to get triangular, rectangular, or hexagonal patterns.
+* `edge_field_multiplier` - When set to a number (try 1 first), the input image is processed to detect edges. A new flow field, that follows the edges is then calculated and merged with the noise field based on the distance to the image edge and this `edge_field_multiplier`, i.e. the resulting flow follows image edges when close to them and the noise field when far from edges.
+* `dark_field_multiplier` - Similarly, when you set `dark_field_multiplier` (again, try 1), a new flow field is constructed. This one curls in dark image areas and gets added to the other flows, weighted by darkness and the `dark_field_multiplier`.  You can combine both `edge_field_multiplier` and `dark_field_multiplier` at the same time.
+* `seed`, `flow_seed` - Set `seed` to a number to get reproducible results. Set `flow_seed` to a number to get reproducible flow field (but the resulting flowlines are still pseudorandom).
+* `transparent_val` - Transparent pixels (from e.g. RGBA png image) get replaced by this 0-255 intensity (default 127). The transparent image parts always use the noise field (either `noise` or `curl_noise`) without image-controlled fields (`edge_field`, `dark_field`).  This can be used to obtain contrasting background.
+
+(feel free to create a pull request with better documentation)
 ## License
 
 GNU GPLv3. See the [LICENSE](LICENSE) file for details.

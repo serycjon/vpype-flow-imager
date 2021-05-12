@@ -102,7 +102,7 @@ eps = 1e-10
 @click.option(
     "-f", "--field_type",
     type=click.Choice(['noise', 'curl_noise'], case_sensitive=False),
-    help="flow field type")
+    help="flow field type [default: noise]")
 @click.option(
     "--transparent_val", type=click.IntRange(0, 255), default=127,
     help="Value to replace transparent pixels")
