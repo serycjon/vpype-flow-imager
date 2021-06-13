@@ -20,6 +20,8 @@ from opensimplex import OpenSimplex
 import tqdm
 import hnswlib
 import contextlib
+from .kdtree import KDTSearcher
+from PIL import Image
 
 import click
 import vpype as vp
@@ -112,41 +114,104 @@ eps = 1e-10
 @click.option(
     "-dfm", "--dark_field_multiplier", type=float, default=None,
     help="flow swirling around dark image areas")
-@vp.generator
-def vpype_flow_imager(filename, noise_coeff, n_fields,
+@click.option(
+    "-kdt", "--kdtree_searcher", is_flag=True,
+    help="Use exact nearest neighbor search with kdtree (slower, but more precise)")
+@click.option(
+    "--cmyk", is_flag=True,
+    help="Split image to CMYK and process each channel separately.  The results are in consecutively numbered layers, starting from `layer`.")
+@click.option(
+        "-l",
+        "--layer",
+        type=vp.LayerType(accept_new=True),
+        default=None,
+        help="Target layer or 'new'.  When CMYK enabled, this indicates the first (cyan) layer.",
+    )
+@vp.global_processor
+def vpype_flow_imager(document, layer, filename, noise_coeff, n_fields,
                       min_sep, max_sep,
                       min_length, max_length, max_size,
                       seed, flow_seed, search_ef,
                       test_frequency,
                       field_type, transparent_val,
-                      edge_field_multiplier, dark_field_multiplier):
+                      edge_field_multiplier, dark_field_multiplier,
+                      kdtree_searcher,
+                      cmyk):
     """
     Generate flowline representation from an image.
 
     The generated flowlines are in the coordinates of the input image,
     resized to have dimensions at most `--max_size` pixels.
     """
-    gray_img = cv2.imread(filename, cv2.IMREAD_UNCHANGED)
+    if kdtree_searcher:
+        searcher_class = KDTSearcher
+    else:
+        searcher_class = HNSWSearcher
+    target_layer = vp.single_to_layer_id(layer, document)
+    img = cv2.imread(filename, cv2.IMREAD_UNCHANGED)
     with tmp_np_seed(seed):
-        numpy_paths = draw_image(gray_img, mult=noise_coeff, n_fields=n_fields,
-                                 min_sep=min_sep, max_sep=max_sep,
-                                 min_length=min_length, max_length=max_length,
-                                 max_img_size=max_size, flow_seed=flow_seed,
-                                 search_ef=search_ef,
-                                 test_frequency=test_frequency,
-                                 field_type=field_type,
-                                 transparent_val=transparent_val,
-                                 edge_field_multiplier=edge_field_multiplier,
-                                 dark_field_multiplier=dark_field_multiplier,
-                                 )
+        if cmyk:
+            img_layers = split_cmyk(img)
+        else:
+            img_layers = [img]
 
-    lc = vp.LineCollection()
-    for path in numpy_paths:
-        lc.append(path[:, 0] + path[:, 1] * 1.j)
-    return lc
+        for layer_i, img_layer in enumerate(img_layers):
+            logger.info(f"computing layer {layer_i+1}")
+            numpy_paths = draw_image(img_layer, mult=noise_coeff, n_fields=n_fields,
+                                     min_sep=min_sep, max_sep=max_sep,
+                                     min_length=min_length, max_length=max_length,
+                                     max_img_size=max_size, flow_seed=flow_seed,
+                                     search_ef=search_ef,
+                                     test_frequency=test_frequency,
+                                     field_type=field_type,
+                                     transparent_val=transparent_val,
+                                     edge_field_multiplier=edge_field_multiplier,
+                                     dark_field_multiplier=dark_field_multiplier,
+                                     searcher_class=searcher_class,
+                                     )
+
+            lc = vp.LineCollection()
+            for path in numpy_paths:
+                lc.append(path[:, 0] + path[:, 1] * 1.j)
+
+            document.add(lc, target_layer + layer_i)
+    return document
 
 
 vpype_flow_imager.help_group = "Plugins"
+
+
+def split_cmyk(img):
+    post_gamma = 1
+
+    rgb = img[:, :, ::-1]
+    p_rgb = Image.fromarray(rgb)
+    cmyk = np.array(p_rgb.convert("CMYK")).astype(np.float64) / 255
+    cmyk = cmyk ** post_gamma
+    # this conversion does not use the black at all (icc profiles and stuff...)
+    # so lets compute the black channel ourselves
+    black_percentage = 1
+
+    black = np.amin(cmyk[:, :, 0:3], axis=2, keepdims=True)
+    black_mask = black == 1
+    non_black_mask = np.logical_not(black_mask)
+    cmyk[non_black_mask[..., 0], :] = ((cmyk[non_black_mask[..., 0], :] -
+                                        black_percentage * black[non_black_mask, np.newaxis]))
+    cmyk[non_black_mask[..., 0], :] /= (1 - black_percentage * black[non_black_mask, np.newaxis])
+
+    cmyk[black_mask[..., 0]] = 0
+    cmyk[:, :, 3] = black_percentage * black[:, :, 0]
+
+    cmyk = 255 * (1 - cmyk)  # invert to get back intensity
+    cmyk = np.clip(cmyk, 0, 255).astype(np.uint8)
+
+    cmyk_channels = np.split(cmyk, 4, axis=2)
+    # ch_names = ['c', 'm', 'y', 'k']
+    # for i, ch in enumerate(cmyk_channels):
+    #     ch_name = ch_names[i]
+    #     cv2.imwrite(f'/tmp/00000_cmyk_{i}{ch_name}.png', ch)
+    # sys.exit(1)
+    return cmyk_channels
 
 
 def norm_2vec(x):
@@ -237,7 +302,8 @@ def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
                search_ef=50, test_frequency=2,
                transparent_val=127,
                field_type='noise',
-               edge_field_multiplier=None, dark_field_multiplier=None):
+               edge_field_multiplier=None, dark_field_multiplier=None,
+               searcher_class=None):
     logger.debug(f"gray_img.shape: {gray_img.shape}")
     gray = resize_to_max(gray_img, max_img_size)
     logger.debug(f"gray.shape: {gray.shape}")
@@ -298,7 +364,8 @@ def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
                                 guide=guide,
                                 min_length=min_length, max_length=max_length,
                                 search_ef=search_ef,
-                                test_frequency=test_frequency)
+                                test_frequency=test_frequency,
+                                searcher_class=searcher_class)
     return paths
 
 
@@ -339,7 +406,8 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
                         seedpoints_per_path=10,
                         guide=None,
                         min_length=0, max_length=20,
-                        search_ef=50, test_frequency=2):
+                        search_ef=50, test_frequency=2,
+                        searcher_class=None):
     if d_test_fn is None:
         def d_test_fn(*args, **kwargs):
             return d_sep_fn(*args, **kwargs) / test_frequency
@@ -369,9 +437,9 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
         #         return True
         return False
 
-    searcher = HNSWSearcher([np.array([-10, -10])],
-                            max_elements=64000,
-                            search_ef=search_ef)
+    searcher = searcher_class([np.array([-10, -10])],
+                              max_elements=64000,
+                              search_ef=search_ef)
     paths = []
     seed_pos = np.array((W / 2, H / 2))
     seedpoints = [seed_pos]
@@ -424,7 +492,8 @@ def draw_fields_uniform(fields, d_sep_fn, d_test_fn=None,
             path = compute_streamline(selector.select_field, seed_pos,
                                       searcher,
                                       d_test_fn, d_sep_fn,
-                                      should_stop_fn=should_stop)
+                                      should_stop_fn=should_stop,
+                                      searcher_class=searcher_class)
             if len(path) <= 2:
                 # nothing found
                 # logging.debug('streamline ended immediately')
@@ -455,14 +524,14 @@ def inside(xy_pt, H, W):
 
 
 def compute_streamline(field_getter, seed_pos, searcher, d_test_fn, d_sep_fn,
-                       should_stop_fn):
+                       should_stop_fn, searcher_class):
     direction_sign = 1  # first go with the field
     pos = seed_pos.copy()
     paths = []
     path = LinePath()
     path.append(pos.copy())
     stop_tracking = False
-    self_searcher = HNSWSearcher([(-20, -20)])
+    self_searcher = searcher_class([(-20, -20)])
     while True:
         field = field_getter(path.line_length, direction_sign)
         rk_force = runge_kutta(field, pos, d_test_fn(pos)) * direction_sign

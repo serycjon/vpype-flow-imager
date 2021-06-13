@@ -64,7 +64,18 @@ Options:
                                   flow along image edges
   -dfm, --dark_field_multiplier FLOAT
                                   flow swirling around dark image areas
-  -l, --layer LAYER               Target layer or 'new'.
+  -kdt, --kdtree_searcher         Use exact nearest neighbor search with
+                                  kdtree (slower, but more precise)  [default:
+                                  False]
+
+  --cmyk                          Split image to CMYK and process each channel
+                                  separately.  The results are in
+                                  consecutively numbered layers, starting from
+                                  `layer`.  [default: False]
+
+  -l, --layer LAYER               Target layer or 'new'.  When CMYK enabled,
+                                  this indicates the first (cyan) layer.
+
   --help                          Show this message and exit.  [default:
                                   False]
 ```
@@ -114,14 +125,18 @@ Starting from the most interesting / useful:
 * `min_sep`, `max_sep` - Control the flowline density (separation between flowlines)
 * `min_length`, `max_length` - Control the flowline length.  (setting `min_length > 0` breaks the flowline density constraints)
 * `field_type` - Set to `noise` (default) to get opensimplex noise flow field, set to `curl_noise` to get curly flow field.
+* `cmyk` - convert the input RGB image into CMYK and output four layers.
 * `n_fields` - Number of rotated copies of the flow field (default: 1). For example, try out 3, 4, or 6 to get triangular, rectangular, or hexagonal patterns.
 * `edge_field_multiplier` - When set to a number (try 1 first), the input image is processed to detect edges. A new flow field, that follows the edges is then calculated and merged with the noise field based on the distance to the image edge and this `edge_field_multiplier`, i.e. the resulting flow follows image edges when close to them and the noise field when far from edges.
 * `dark_field_multiplier` - Similarly, when you set `dark_field_multiplier` (again, try 1), a new flow field is constructed. This one curls in dark image areas and gets added to the other flows, weighted by darkness and the `dark_field_multiplier`.  You can combine both `edge_field_multiplier` and `dark_field_multiplier` at the same time.
 * `seed`, `flow_seed` - Set `seed` to a number to get reproducible results. Set `flow_seed` to a number to get reproducible flow field (but the resulting flowlines are still pseudorandom).
+* `kdtree_searcher` - use exact nearest neighbor search.  This gets rid of occasional dark clumps, but the computation is much slower.
 * `transparent_val` - Transparent pixels (from e.g. RGBA png image) get replaced by this 0-255 intensity (default 127). The transparent image parts always use the noise field (either `noise` or `curl_noise`) without image-controlled fields (`edge_field`, `dark_field`).  This can be used to obtain contrasting background.
 
 (feel free to create a pull request with better documentation)
 ## License
 
 GNU GPLv3. See the [LICENSE](LICENSE) file for details.
-example coffee photo by [jannoon028](https://www.freepik.com/free-photo/cup-coffee-viewed-from_992559.htm)
+Example coffee photo by [jannoon028](https://www.freepik.com/free-photo/cup-coffee-viewed-from_992559.htm)
+Kd-tree searcher CC0 from [Python-KD-Tree](https://github.com/Vectorized/Python-KD-Tree).
+
