@@ -109,6 +109,9 @@ eps = 1e-10
     "--transparent_val", type=click.IntRange(0, 255), default=127,
     help="Value to replace transparent pixels")
 @click.option(
+    "-tm", "--transparent_mask", is_flag=True,
+    help="Remove lines from transparent parts of the source image.")
+@click.option(
     "-efm", "--edge_field_multiplier", type=float, default=None,
     help="flow along image edges")
 @click.option(
@@ -133,7 +136,7 @@ def vpype_flow_imager(document, layer, filename, noise_coeff, n_fields,
                       min_length, max_length, max_size,
                       seed, flow_seed, search_ef,
                       test_frequency,
-                      field_type, transparent_val,
+                      field_type, transparent_val, transparent_mask,
                       edge_field_multiplier, dark_field_multiplier,
                       kdtree_searcher,
                       cmyk):
@@ -149,6 +152,7 @@ def vpype_flow_imager(document, layer, filename, noise_coeff, n_fields,
         searcher_class = HNSWSearcher
     target_layer = vp.single_to_layer_id(layer, document)
     img = cv2.imread(filename, cv2.IMREAD_UNCHANGED)
+    logger.debug(f"original img.shape: {img.shape}")
     with tmp_np_seed(seed):
         if cmyk:
             img_layers = split_cmyk(img)
@@ -165,6 +169,7 @@ def vpype_flow_imager(document, layer, filename, noise_coeff, n_fields,
                                      test_frequency=test_frequency,
                                      field_type=field_type,
                                      transparent_val=transparent_val,
+                                     transparent_mask=transparent_mask,
                                      edge_field_multiplier=edge_field_multiplier,
                                      dark_field_multiplier=dark_field_multiplier,
                                      searcher_class=searcher_class,
@@ -300,7 +305,7 @@ def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
                min_length=0, max_length=40,
                flow_seed=None,
                search_ef=50, test_frequency=2,
-               transparent_val=127,
+               transparent_val=127, transparent_mask=True,
                field_type='noise',
                edge_field_multiplier=None, dark_field_multiplier=None,
                searcher_class=None):
@@ -366,7 +371,34 @@ def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
                                 search_ef=search_ef,
                                 test_frequency=test_frequency,
                                 searcher_class=searcher_class)
+
+    if transparent_mask:
+        paths = mask_paths(paths, data_mask)
     return paths
+
+
+def mask_paths(paths, fg_mask):
+    """ Remove paths not on foreground mask """
+    logger.debug(f"np.sum(fg_mask > 0): {np.sum(fg_mask > 0)}")
+    logger.debug(f"fg_mask.size: {fg_mask.size}")
+    masked_paths = []
+    for path in paths:
+        current_path = []
+        for i in range(len(path)):
+            pt = path[i, :]
+            x, y = fit_inside(np.round(pt), fg_mask)
+            mask_val = fg_mask[int(y), int(x)]
+            pt_on_fg = mask_val > 0
+
+            if not pt_on_fg:
+                if len(current_path) >= 2:
+                    masked_paths.append(np.array(current_path))
+                current_path = []
+            else:
+                current_path.append(pt)
+        if len(current_path) >= 2:
+            masked_paths.append(np.array(current_path))
+    return masked_paths
 
 
 class VectorField():

@@ -60,6 +60,9 @@ Options:
                                   Value to replace transparent pixels
                                   [default: 127]
 
+  -tm, --transparent_mask         Remove lines from transparent parts of the
+                                  source image.  [default: False]
+
   -efm, --edge_field_multiplier FLOAT
                                   flow along image edges
   -dfm, --dark_field_multiplier FLOAT
