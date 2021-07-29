@@ -155,13 +155,16 @@ def vpype_flow_imager(document, layer, filename, noise_coeff, n_fields,
     logger.debug(f"original img.shape: {img.shape}")
     with tmp_np_seed(seed):
         if cmyk:
-            img_layers = split_cmyk(img)
+            img_layers = split_cmyk(img.copy())
         else:
             img_layers = [img]
 
+        alpha = get_alpha_channel(img)
+
         for layer_i, img_layer in enumerate(img_layers):
             logger.info(f"computing layer {layer_i+1}")
-            numpy_paths = draw_image(img_layer, mult=noise_coeff, n_fields=n_fields,
+            numpy_paths = draw_image(img_layer, alpha,
+                                     mult=noise_coeff, n_fields=n_fields,
                                      min_sep=min_sep, max_sep=max_sep,
                                      min_length=min_length, max_length=max_length,
                                      max_img_size=max_size, flow_seed=flow_seed,
@@ -186,9 +189,17 @@ def vpype_flow_imager(document, layer, filename, noise_coeff, n_fields,
 vpype_flow_imager.help_group = "Plugins"
 
 
+def get_alpha_channel(img):
+    """ Return alpha channel from opencv image, or None. """
+    if len(img.shape) == 3 and img.shape[2] == 4:
+        return img[:, :, 3]
+
+
 def split_cmyk(img):
     post_gamma = 1
 
+    if img.shape[2] == 4:  # rgba
+        img = img[:, :, :3]
     rgb = img[:, :, ::-1]
     p_rgb = Image.fromarray(rgb)
     cmyk = np.array(p_rgb.convert("CMYK")).astype(np.float64) / 255
@@ -300,7 +311,8 @@ def normalize_flow_field(field):
     return field / (norm + 1e-10)
 
 
-def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
+def draw_image(gray_img, alpha,
+               mult, max_img_size=800, n_fields=1,
                min_sep=0.8, max_sep=10,
                min_length=0, max_length=40,
                flow_seed=None,
@@ -316,8 +328,8 @@ def draw_image(gray_img, mult, max_img_size=800, n_fields=1,
         gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
 
     H, W, C = gray.shape
-    if C == 4:
-        data_mask = gray[:, :, 3] > 0
+    if alpha is not None:
+        data_mask = resize_to_max(alpha, max_img_size) > 0
     else:
         data_mask = np.ones((H, W)) > 0
 
