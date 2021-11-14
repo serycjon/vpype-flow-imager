@@ -33,36 +33,28 @@ Options:
   -nc, --noise_coeff FLOAT        Simplex noise coordinate multiplier. The
                                   smaller, the smoother the flow field.
                                   [default: 0.001]
-
   -nf, --n_fields INTEGER         Number of rotated copies of the flow field
                                   [default: 1]
-
   -ms, --min_sep FLOAT            Minimum flowline separation  [default: 0.8]
   -Ms, --max_sep FLOAT            Maximum flowline separation  [default: 10]
   -ml, --min_length FLOAT         Minimum flowline length  [default: 0]
   -Ml, --max_length FLOAT         Maximum flowline length  [default: 40]
   --max_size INTEGER              The input image will be rescaled to have
                                   sides at most max_size px  [default: 800]
-
   -ef, --search_ef INTEGER        HNSWlib search ef (higher -> more accurate,
                                   but slower)  [default: 50]
-
   -s, --seed INTEGER              PRNG seed (overriding vpype seed)
   -fs, --flow_seed INTEGER        Flow field PRNG seed (overriding the main
                                   `--seed`)
-
   -tf, --test_frequency FLOAT     Number of separation tests per current
                                   flowline separation  [default: 2]
-
   -f, --field_type [noise|curl_noise]
                                   flow field type [default: noise]
   --transparent_val INTEGER RANGE
                                   Value to replace transparent pixels
-                                  [default: 127]
-
+                                  [default: 127; 0<=x<=255]
   -tm, --transparent_mask         Remove lines from transparent parts of the
                                   source image.  [default: False]
-
   -efm, --edge_field_multiplier FLOAT
                                   flow along image edges
   -dfm, --dark_field_multiplier FLOAT
@@ -70,15 +62,13 @@ Options:
   -kdt, --kdtree_searcher         Use exact nearest neighbor search with
                                   kdtree (slower, but more precise)  [default:
                                   False]
-
   --cmyk                          Split image to CMYK and process each channel
                                   separately.  The results are in
                                   consecutively numbered layers, starting from
                                   `layer`.  [default: False]
-
+  --rotate DEGREES                rotate the flow field  [default: 0]
   -l, --layer LAYER               Target layer or 'new'.  When CMYK enabled,
                                   this indicates the first (cyan) layer.
-
   --help                          Show this message and exit.  [default:
                                   False]
 ```
@@ -129,6 +119,7 @@ Starting from the most interesting / useful:
 * `min_length`, `max_length` - Control the flowline length.  (setting `min_length > 0` breaks the flowline density constraints)
 * `field_type` - Set to `noise` (default) to get opensimplex noise flow field, set to `curl_noise` to get curly flow field.
 * `cmyk` - convert the input RGB image into CMYK and output four layers.
+* `rotate` - Rotate the flow field. Useful if you want to achieve cross-hatching (example: `vpype flow_img -fs 42 examples/coffee.jpg flow_img -fs 42 --rotate 90 examples/coffee.jpg show`)
 * `n_fields` - Number of rotated copies of the flow field (default: 1). For example, try out 3, 4, or 6 to get triangular, rectangular, or hexagonal patterns.
 * `edge_field_multiplier` - When set to a number (try 1 first), the input image is processed to detect edges. A new flow field, that follows the edges is then calculated and merged with the noise field based on the distance to the image edge and this `edge_field_multiplier`, i.e. the resulting flow follows image edges when close to them and the noise field when far from edges.
 * `dark_field_multiplier` - Similarly, when you set `dark_field_multiplier` (again, try 1), a new flow field is constructed. This one curls in dark image areas and gets added to the other flows, weighted by darkness and the `dark_field_multiplier`.  You can combine both `edge_field_multiplier` and `dark_field_multiplier` at the same time.

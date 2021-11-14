@@ -124,6 +124,9 @@ eps = 1e-10
     "--cmyk", is_flag=True,
     help="Split image to CMYK and process each channel separately.  The results are in consecutively numbered layers, starting from `layer`.")
 @click.option(
+    "--rotate", type=float, default=0, metavar='DEGREES',
+    help="rotate the flow field")
+@click.option(
         "-l",
         "--layer",
         type=vp.LayerType(accept_new=True),
@@ -139,7 +142,7 @@ def vpype_flow_imager(document, layer, filename, noise_coeff, n_fields,
                       field_type, transparent_val, transparent_mask,
                       edge_field_multiplier, dark_field_multiplier,
                       kdtree_searcher,
-                      cmyk):
+                      cmyk, rotate):
     """
     Generate flowline representation from an image.
 
@@ -176,6 +179,7 @@ def vpype_flow_imager(document, layer, filename, noise_coeff, n_fields,
                                      edge_field_multiplier=edge_field_multiplier,
                                      dark_field_multiplier=dark_field_multiplier,
                                      searcher_class=searcher_class,
+                                     rotate=rotate,
                                      )
 
             lc = vp.LineCollection()
@@ -320,7 +324,7 @@ def draw_image(gray_img, alpha,
                transparent_val=127, transparent_mask=True,
                field_type='noise',
                edge_field_multiplier=None, dark_field_multiplier=None,
-               searcher_class=None):
+               searcher_class=None, rotate=0):
     logger.debug(f"gray_img.shape: {gray_img.shape}")
     gray = resize_to_max(gray_img, max_img_size)
     logger.debug(f"gray.shape: {gray.shape}")
@@ -361,6 +365,7 @@ def draw_image(gray_img, alpha,
 
     field[background_mask, :] = noise_field[background_mask, :]
     field = normalize_flow_field(field)
+    field = rotate_field(field, rotate)
     fields = [VectorField(field)]
     if n_fields > 1:
         angles = np.linspace(0, 360, n_fields + 1)
