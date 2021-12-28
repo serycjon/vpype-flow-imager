@@ -2,7 +2,7 @@
 click
 vpype
 opencv-python-headless  # headless not to conflict with QT versions
-opensimplex
+opensimplex==0.4
 tqdm
 hnswlib
 
