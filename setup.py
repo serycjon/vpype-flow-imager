@@ -21,7 +21,7 @@ setup(
         'click',
         'vpype',
         'opencv-python-headless',  # headless not to conflict with QT versions in vpype show
-        'opensimplex',
+        'opensimplex==0.4',
         'tqdm',
         'hnswlib>=0.5.0',
         'scikit-image',
