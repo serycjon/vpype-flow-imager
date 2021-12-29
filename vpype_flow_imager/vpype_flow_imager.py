@@ -246,8 +246,8 @@ def gen_flow_field(H, W, x_mult=1, y_mult=None):
     field = np.zeros((H, W, 2), dtype=np.float64)
     for y in range(H):
         for x in range(W):
-            x_val = x_noise.noise2d(x=x_mult * x, y=x_mult * y)
-            y_val = y_noise.noise2d(x=y_mult * x, y=y_mult * y)
+            x_val = x_noise.noise2(x=x_mult * x, y=x_mult * y)
+            y_val = y_noise.noise2(x=y_mult * x, y=y_mult * y)
             norm = np.sqrt(x_val ** 2 + y_val ** 2)
             if norm > eps:
                 x_val /= norm
@@ -266,7 +266,7 @@ def gen_curl_flow_field(H, W, x_mult=1, y_mult=None):
     field = np.zeros((H, W), dtype=np.float64)
     for y in range(H):
         for x in range(W):
-            val = noise.noise2d(x=x_mult * x, y=x_mult * y)
+            val = noise.noise2(x=x_mult * x, y=x_mult * y)
             field[y, x] = val
 
     grad_y, grad_x = np.gradient(field)
