@@ -25,6 +25,7 @@ from PIL import Image
 
 import click
 import vpype as vp
+import vpype_cli
 
 import logging
 logger = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ eps = 1e-10
 
 
 @click.command("flow_img", context_settings={'show_default': True})
-@click.argument("filename", type=click.Path(exists=True))
+@click.argument("filename", type=vpype_cli.PathType(exists=True))
 @click.option(
     "-nc",
     "--noise_coeff",
@@ -129,11 +130,11 @@ eps = 1e-10
 @click.option(
         "-l",
         "--layer",
-        type=vp.LayerType(accept_new=True),
+        type=vpype_cli.LayerType(accept_new=True),
         default=None,
         help="Target layer or 'new'.  When CMYK enabled, this indicates the first (cyan) layer.",
     )
-@vp.global_processor
+@vpype_cli.global_processor
 def vpype_flow_imager(document, layer, filename, noise_coeff, n_fields,
                       min_sep, max_sep,
                       min_length, max_length, max_size,
@@ -153,7 +154,7 @@ def vpype_flow_imager(document, layer, filename, noise_coeff, n_fields,
         searcher_class = KDTSearcher
     else:
         searcher_class = HNSWSearcher
-    target_layer = vp.single_to_layer_id(layer, document)
+    target_layer = vpype_cli.single_to_layer_id(layer, document)
     img = cv2.imread(filename, cv2.IMREAD_UNCHANGED)
     logger.debug(f"original img.shape: {img.shape}")
     with tmp_np_seed(seed):

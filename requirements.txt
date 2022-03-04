@@ -1,6 +1,6 @@
 # base
 click
-vpype
+vpype>=1.9,<2.0
 opencv-python-headless  # headless not to conflict with QT versions
 opensimplex==0.4
 tqdm
