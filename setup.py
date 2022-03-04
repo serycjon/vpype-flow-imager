@@ -19,7 +19,7 @@ setup(
     packages=["vpype_flow_imager"],
     install_requires=[
         'click',
-        'vpype',
+        'vpype>=1.9,<2.0',
         'opencv-python-headless',  # headless not to conflict with QT versions in vpype show
         'opensimplex==0.4',
         'tqdm',
