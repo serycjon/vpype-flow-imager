@@ -20,7 +20,7 @@ For an existing *vpype* installation using pip in a virtual environment, activat
 $ pip install git+https://github.com/serycjon/vpype-flow-imager.git#egg=vpype-flow-imager
 ```
 
-Fopr a new installation of `vpype flow imager`, use the following commands:
+For a new installation of `vpype flow imager`, use the following commands:
 ```bash
 $ python3.8 -m venv my_virtual_env
 $ source my_virtual_env/bin/activate
