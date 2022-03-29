@@ -8,7 +8,19 @@
 
 You will need a C++ compiler before running the flow imager installation. One way of getting the compiler on Windows is installing Visual Studio with C++ package ([tutorial](https://docs.microsoft.com/en-us/cpp/build/vscpp-step-0-installation?view=msvc-160)).
 
-Install `vpype flow imager` using the following commands:
+For an existing *vpype* installation using pipx, use the following command:
+
+```bash
+$ pipx inject vpype git+https://github.com/serycjon/vpype-flow-imager
+```
+
+For an existing *vpype* installation using pip in a virtual environment, activate the virtual environment and using the following command:
+
+```bash
+$ pip install git+https://github.com/serycjon/vpype-flow-imager.git#egg=vpype-flow-imager
+```
+
+For a new installation of `vpype flow imager`, use the following commands:
 ```bash
 $ python3.8 -m venv my_virtual_env
 $ source my_virtual_env/bin/activate
