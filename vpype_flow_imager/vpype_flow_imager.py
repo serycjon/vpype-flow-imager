@@ -39,7 +39,7 @@ eps = 1e-10
     "-nc",
     "--noise_coeff",
     default=0.001,
-    type=float,
+    type=vpype_cli.FloatType(),
     help=("Simplex noise coordinate multiplier. "
           "The smaller, the smoother the flow field."),
 )
@@ -47,64 +47,64 @@ eps = 1e-10
     "-nf",
     "--n_fields",
     default=1,
-    type=int,
+    type=vpype_cli.IntegerType(),
     help="Number of rotated copies of the flow field",
 )
 @click.option(
     "-ms",
     "--min_sep",
     default=0.8,
-    type=float,
+    type=vpype_cli.FloatType(),
     help="Minimum flowline separation",
 )
 @click.option(
     "-Ms",
     "--max_sep",
     default=10,
-    type=float,
+    type=vpype_cli.FloatType(),
     help="Maximum flowline separation",
 )
 @click.option(
     "-ml",
     "--min_length",
     default=0,
-    type=float,
+    type=vpype_cli.FloatType(),
     help="Minimum flowline length",
 )
 @click.option(
     "-Ml",
     "--max_length",
     default=40,
-    type=float,
+    type=vpype_cli.FloatType(),
     help="Maximum flowline length",
 )
 @click.option(
     "--max_size",
     default=800,
-    type=int,
+    type=vpype_cli.IntegerType(),
     help="The input image will be rescaled to have sides at most max_size px",
 )
 @click.option(
     "--search_ef",
     "-ef",
     default=50,
-    type=int,
+    type=vpype_cli.IntegerType(),
     help="HNSWlib search ef (higher -> more accurate, but slower)",
 )
 @click.option(
-    "-s", "--seed", type=int, help="PRNG seed (overriding vpype seed)"
+    "-s", "--seed", type=vpype_cli.IntegerType(), help="PRNG seed (overriding vpype seed)"
 )
 @click.option(
-    "-fs", "--flow_seed", type=int,
+    "-fs", "--flow_seed", type=vpype_cli.IntegerType(),
     help="Flow field PRNG seed (overriding the main `--seed`)"
 )
 @click.option(
-    "-tf", "--test_frequency", type=float, default=2,
+    "-tf", "--test_frequency", type=vpype_cli.FloatType(), default=2,
     help="Number of separation tests per current flowline separation",
 )
 @click.option(
     "-f", "--field_type",
-    type=click.Choice(['noise', 'curl_noise'], case_sensitive=False),
+    type=vpype_cli.ChoiceType(['noise', 'curl_noise'], case_sensitive=False),
     help="flow field type [default: noise]")
 @click.option(
     "--transparent_val", type=click.IntRange(0, 255), default=127,
@@ -113,10 +113,10 @@ eps = 1e-10
     "-tm", "--transparent_mask", is_flag=True,
     help="Remove lines from transparent parts of the source image.")
 @click.option(
-    "-efm", "--edge_field_multiplier", type=float, default=None,
+    "-efm", "--edge_field_multiplier", type=vpype_cli.FloatType(), default=None,
     help="flow along image edges")
 @click.option(
-    "-dfm", "--dark_field_multiplier", type=float, default=None,
+    "-dfm", "--dark_field_multiplier", type=vpype_cli.FloatType(), default=None,
     help="flow swirling around dark image areas")
 @click.option(
     "-kdt", "--kdtree_searcher", is_flag=True,
@@ -125,7 +125,7 @@ eps = 1e-10
     "--cmyk", is_flag=True,
     help="Split image to CMYK and process each channel separately.  The results are in consecutively numbered layers, starting from `layer`.")
 @click.option(
-    "--rotate", type=float, default=0, metavar='DEGREES',
+    "--rotate", type=vpype_cli.FloatType(), default=0, metavar='DEGREES',
     help="rotate the flow field")
 @click.option(
         "-l",
@@ -188,6 +188,7 @@ def vpype_flow_imager(document, layer, filename, noise_coeff, n_fields,
                 lc.append(path[:, 0] + path[:, 1] * 1.j)
 
             document.add(lc, target_layer + layer_i)
+    document.add_to_sources(filename)
     return document
 
 
