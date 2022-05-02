@@ -158,7 +158,7 @@ def vpype_flow_imager(document, layer, filename, noise_coeff, n_fields,
         searcher_class = KDTSearcher
     else:
         if hnswlib is None:
-            logger.warning("Could not import hnswlib, falling back to KD-tree searcher.")
+            logger.warning("Could not import hnswlib, falling back to KD-tree searcher.  Make sure to install with vpype-flow-imager[all], if you want to use the default HNSWlib searcher.")
             searcher_class = KDTSearcher
         else:
             searcher_class = HNSWSearcher
