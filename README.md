@@ -87,7 +87,7 @@ Options:
 You will need a C++ compiler before running the default flow imager installation. One way of getting the compiler on Windows is installing Visual Studio with C++ package ([tutorial](https://docs.microsoft.com/en-us/cpp/build/vscpp-step-0-installation?view=msvc-160)).
 If the installation fails on some things related to "hnswlib", you can use the fallback installation, removing the `[all]` from the installation command, e.g.:
 ```bash
-$ pipx inject vpype git+https://github.com/serycjon/vpype-flow-imager[all]
+$ pipx inject vpype git+https://github.com/serycjon/vpype-flow-imager
 ```
 
 If you still get errors, feel free to create an issue here on github, or ask around at the ([drawingbots discord](https://discordapp.com/invite/XHP3dBg)).
