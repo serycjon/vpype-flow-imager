@@ -18,7 +18,11 @@ import numpy as np
 import cv2
 from opensimplex import OpenSimplex
 import tqdm
-import hnswlib
+try:
+    import hnswlib
+except ImportError:
+    hnswlib = None
+
 import contextlib
 from .kdtree import KDTSearcher
 from PIL import Image
@@ -153,7 +157,11 @@ def vpype_flow_imager(document, layer, filename, noise_coeff, n_fields,
     if kdtree_searcher:
         searcher_class = KDTSearcher
     else:
-        searcher_class = HNSWSearcher
+        if hnswlib is None:
+            logger.warning("Could not import hnswlib, falling back to KD-tree searcher.")
+            searcher_class = KDTSearcher
+        else:
+            searcher_class = HNSWSearcher
     target_layer = vpype_cli.single_to_layer_id(layer, document)
     img = cv2.imread(filename, cv2.IMREAD_UNCHANGED)
     logger.debug(f"original img.shape: {img.shape}")
