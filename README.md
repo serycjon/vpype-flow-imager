@@ -6,25 +6,23 @@
 
 ## Getting Started
 
-You will need a C++ compiler before running the flow imager installation. One way of getting the compiler on Windows is installing Visual Studio with C++ package ([tutorial](https://docs.microsoft.com/en-us/cpp/build/vscpp-step-0-installation?view=msvc-160)).
-
 For an existing *vpype* installation using pipx, use the following command:
 
 ```bash
-$ pipx inject vpype git+https://github.com/serycjon/vpype-flow-imager
+$ pipx inject vpype git+https://github.com/serycjon/vpype-flow-imager[all]
 ```
 
 For an existing *vpype* installation using pip in a virtual environment, activate the virtual environment and using the following command:
 
 ```bash
-$ pip install git+https://github.com/serycjon/vpype-flow-imager.git#egg=vpype-flow-imager
+$ pip install git+https://github.com/serycjon/vpype-flow-imager.git#egg=vpype-flow-imager[all]
 ```
 
 For a new installation of `vpype flow imager`, use the following commands:
 ```bash
 $ python3.8 -m venv my_virtual_env
 $ source my_virtual_env/bin/activate
-$ pip install git+https://github.com/serycjon/vpype-flow-imager.git#egg=vpype-flow-imager
+$ pip install git+https://github.com/serycjon/vpype-flow-imager.git#egg=vpype-flow-imager[all]
 ```
 
 `vpype` is automatically installed with `vpype flow imager`, so no further steps are required.
@@ -84,6 +82,15 @@ Options:
   --help                          Show this message and exit.  [default:
                                   False]
 ```
+
+
+You will need a C++ compiler before running the default flow imager installation. One way of getting the compiler on Windows is installing Visual Studio with C++ package ([tutorial](https://docs.microsoft.com/en-us/cpp/build/vscpp-step-0-installation?view=msvc-160)).
+If the installation fails on some things related to "hnswlib", you can use the fallback installation, removing the `[all]` from the installation command, e.g.:
+```bash
+$ pipx inject vpype git+https://github.com/serycjon/vpype-flow-imager[all]
+```
+
+If you still get errors, feel free to create an issue here on github, or ask around at the ([drawingbots discord](https://discordapp.com/invite/XHP3dBg)).
 
 To create a SVG, combine the `flow_img` command with the `write` command (check `vpype`'s documentation for more
 information). Here is an example:
