@@ -196,6 +196,7 @@ def vpype_flow_imager(document, layer, filename, noise_coeff, n_fields,
                 lc.append(path[:, 0] + path[:, 1] * 1.j)
 
             document.add(lc, target_layer + layer_i)
+            document.extend_page_size((float(img.shape[1]), float(img.shape[0])))
     document.add_to_sources(filename)
     return document
 
@@ -337,6 +338,7 @@ def draw_image(gray_img, alpha,
                searcher_class=None, rotate=0):
     logger.debug(f"gray_img.shape: {gray_img.shape}")
     gray = resize_to_max(gray_img, max_img_size)
+    scale_to_orig = gray_img.shape[0] / float(gray.shape[0])
     logger.debug(f"gray.shape: {gray.shape}")
     if len(gray.shape) == 2:
         gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
@@ -401,6 +403,7 @@ def draw_image(gray_img, alpha,
 
     if transparent_mask:
         paths = mask_paths(paths, data_mask)
+    paths = [scale_to_orig * path for path in paths]
     return paths
 
 
