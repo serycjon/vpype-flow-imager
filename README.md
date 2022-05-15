@@ -9,20 +9,20 @@
 For an existing *vpype* installation using pipx, use the following command:
 
 ```bash
-$ pipx inject vpype git+https://github.com/serycjon/vpype-flow-imager[all]
+$ pipx inject vpype 'git+https://github.com/serycjon/vpype-flow-imager.git#egg=vpype-flow-imager[all]'
 ```
 
 For an existing *vpype* installation using pip in a virtual environment, activate the virtual environment and using the following command:
 
 ```bash
-$ pip install git+https://github.com/serycjon/vpype-flow-imager.git#egg=vpype-flow-imager[all]
+$ pip install 'git+https://github.com/serycjon/vpype-flow-imager.git#egg=vpype-flow-imager[all]'
 ```
 
 For a new installation of `vpype flow imager`, use the following commands:
 ```bash
 $ python3.8 -m venv my_virtual_env
 $ source my_virtual_env/bin/activate
-$ pip install git+https://github.com/serycjon/vpype-flow-imager.git#egg=vpype-flow-imager[all]
+$ pip install 'git+https://github.com/serycjon/vpype-flow-imager.git#egg=vpype-flow-imager[all]'
 ```
 
 `vpype` is automatically installed with `vpype flow imager`, so no further steps are required.
