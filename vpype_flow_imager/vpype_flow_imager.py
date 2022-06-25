@@ -310,7 +310,10 @@ def gen_edge_flow_field(H, W, intensities):
 
 def gen_darkness_curl_flow_field(H, W, intensities):
     assert len(intensities.shape) == 2
-    blur_kernel = 2 * 87 + 1
+    blur_kernel = int(np.sqrt(H * W) / 4.5)
+    if (blur_kernel % 2) == 0:
+        blur_kernel += 1
+
     heights = cv2.GaussianBlur(intensities.astype(np.float32),
                                (blur_kernel, blur_kernel), 0)
 
