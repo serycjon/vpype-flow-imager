@@ -40,6 +40,15 @@ eps = 1e-10
 @click.command("flow_img", context_settings={'show_default': True})
 @click.argument("filename", type=vpype_cli.PathType(exists=True))
 @click.option(
+    "-fi",
+    "--flow_image",
+    type=vpype_cli.PathType(exists=True),
+    help="An image to use for the flow field. X and Y components of the flow vector "
+         "are encoded in the red and green channels, as in a normal map. "
+         "Must be the same size as the main input image. It might work if they have "
+         "exactly the same aspect ratio.",
+)
+@click.option(
     "-nc",
     "--noise_coeff",
     default=0.001,
@@ -58,34 +67,34 @@ eps = 1e-10
     "-ms",
     "--min_sep",
     default=0.8,
-    type=vpype_cli.FloatType(),
+    type=vpype_cli.LengthType(),
     help="Minimum flowline separation",
 )
 @click.option(
     "-Ms",
     "--max_sep",
     default=10,
-    type=vpype_cli.FloatType(),
+    type=vpype_cli.LengthType(),
     help="Maximum flowline separation",
 )
 @click.option(
     "-ml",
     "--min_length",
     default=0,
-    type=vpype_cli.FloatType(),
+    type=vpype_cli.LengthType(),
     help="Minimum flowline length",
 )
 @click.option(
     "-Ml",
     "--max_length",
     default=40,
-    type=vpype_cli.FloatType(),
+    type=vpype_cli.LengthType(),
     help="Maximum flowline length",
 )
 @click.option(
     "--max_size",
     default=800,
-    type=vpype_cli.IntegerType(),
+    type=vpype_cli.LengthType(),
     help="The input image will be rescaled to have sides at most max_size px",
 )
 @click.option(
@@ -139,7 +148,7 @@ eps = 1e-10
         help="Target layer or 'new'.  When CMYK enabled, this indicates the first (cyan) layer.",
     )
 @vpype_cli.global_processor
-def vpype_flow_imager(document, layer, filename, noise_coeff, n_fields,
+def vpype_flow_imager(document, layer, filename, flow_image, noise_coeff, n_fields,
                       min_sep, max_sep,
                       min_length, max_length, max_size,
                       seed, flow_seed, search_ef,
@@ -171,6 +180,11 @@ def vpype_flow_imager(document, layer, filename, noise_coeff, n_fields,
         else:
             img_layers = [img]
 
+        if flow_image:
+            flow_image_data = cv2.imread(flow_image, cv2.IMREAD_COLOR)
+        else:
+            flow_image_data = None
+
         alpha = get_alpha_channel(img)
 
         for layer_i, img_layer in enumerate(img_layers):
@@ -188,7 +202,7 @@ def vpype_flow_imager(document, layer, filename, noise_coeff, n_fields,
                                      edge_field_multiplier=edge_field_multiplier,
                                      dark_field_multiplier=dark_field_multiplier,
                                      searcher_class=searcher_class,
-                                     rotate=rotate,
+                                     rotate=rotate, flow_image_data=flow_image_data
                                      )
 
             lc = vp.LineCollection()
@@ -338,7 +352,7 @@ def draw_image(gray_img, alpha,
                transparent_val=127, transparent_mask=True,
                field_type='noise',
                edge_field_multiplier=None, dark_field_multiplier=None,
-               searcher_class=None, rotate=0):
+               searcher_class=None, rotate=0, flow_image_data=None):
     logger.debug(f"gray_img.shape: {gray_img.shape}")
     gray = resize_to_max(gray_img, max_img_size)
     scale_to_orig = gray_img.shape[0] / float(gray.shape[0])
@@ -356,32 +370,42 @@ def draw_image(gray_img, alpha,
     gray = cv2.cvtColor(gray[:, :, :3], cv2.COLOR_BGR2GRAY)
     gray[background_mask] = transparent_val
 
-    logger.info('Generating flow field')
-    with tmp_np_seed(flow_seed):
-        if field_type == 'curl_noise':
-            noise_field = gen_curl_flow_field(H, W, x_mult=mult)
-        else:
-            noise_field = gen_flow_field(H, W, x_mult=mult)
+    if flow_image_data is not None:
+        resized_flows = resize_to_max(flow_image_data, max_img_size)
+        floaty_flows = resized_flows.astype(float)
+        flow_x_y = floaty_flows[:, :, [2, 1]]
+        scaled_flow_x_y = (flow_x_y - 128) / 128
+        scaled_flow_x_y[:, :, 1] = scaled_flow_x_y[:, :, 1] * -1
+        field = scaled_flow_x_y
+    else:
+        logger.info('Generating flow field')
+        with tmp_np_seed(flow_seed):
+            if field_type == 'curl_noise':
+                noise_field = gen_curl_flow_field(H, W, x_mult=mult)
+            else:
+                noise_field = gen_flow_field(H, W, x_mult=mult)
 
-    field = np.zeros_like(noise_field)
-    weights = np.zeros_like(noise_field)
+        field = np.zeros_like(noise_field)
+        weights = np.zeros_like(noise_field)
 
-    if edge_field_multiplier is not None:
-        edge_field, edge_weights = gen_edge_flow_field(H, W, gray)
-        field += edge_weights * edge_field * edge_field_multiplier
-        weights += edge_weights * edge_field_multiplier
+        if edge_field_multiplier is not None:
+            edge_field, edge_weights = gen_edge_flow_field(H, W, gray)
+            field += edge_weights * edge_field * edge_field_multiplier
+            weights += edge_weights * edge_field_multiplier
 
-    if dark_field_multiplier is not None:
-        dark_field, dark_weights = gen_darkness_curl_flow_field(H, W, gray)
-        field += dark_weights * dark_field * dark_field_multiplier
-        weights += dark_weights * dark_field_multiplier
+        if dark_field_multiplier is not None:
+            dark_field, dark_weights = gen_darkness_curl_flow_field(H, W, gray)
+            field += dark_weights * dark_field * dark_field_multiplier
+            weights += dark_weights * dark_field_multiplier
 
-    field += np.clip(1 - weights, 0, 1) * noise_field
+        field += np.clip(1 - weights, 0, 1) * noise_field
 
-    field[background_mask, :] = noise_field[background_mask, :]
-    field = normalize_flow_field(field)
+        field[background_mask, :] = noise_field[background_mask, :]
+        field = normalize_flow_field(field)
+
     field = rotate_field(field, rotate)
     fields = [VectorField(field)]
+
     if n_fields > 1:
         angles = np.linspace(0, 360, n_fields + 1)
         for angle in angles:
