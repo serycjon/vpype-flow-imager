@@ -40,16 +40,22 @@ Usage: vpype flow_img [OPTIONS] FILENAME
   to have dimensions at most `--max_size` pixels.
 
 Options:
+  -fi, --flow_image FILE          An image to use for the flow field. X and Y
+                                  components of the flow vector are encoded
+                                  in the red and green channels, as in a
+                                  normal map. Must be the same size as the
+                                  main input image. It might work if they
+                                  have exactly the same aspect ratio.
   -nc, --noise_coeff FLOAT        Simplex noise coordinate multiplier. The
                                   smaller, the smoother the flow field.
                                   [default: 0.001]
   -nf, --n_fields INTEGER         Number of rotated copies of the flow field
                                   [default: 1]
-  -ms, --min_sep FLOAT            Minimum flowline separation  [default: 0.8]
-  -Ms, --max_sep FLOAT            Maximum flowline separation  [default: 10]
-  -ml, --min_length FLOAT         Minimum flowline length  [default: 0]
-  -Ml, --max_length FLOAT         Maximum flowline length  [default: 40]
-  --max_size INTEGER              The input image will be rescaled to have
+  -ms, --min_sep LENGTH           Minimum flowline separation  [default: 0.8]
+  -Ms, --max_sep LENGTH           Maximum flowline separation  [default: 10]
+  -ml, --min_length LENGTH        Minimum flowline length  [default: 0]
+  -Ml, --max_length LENGTH        Maximum flowline length  [default: 40]
+  --max_size LENGTH               The input image will be rescaled to have
                                   sides at most max_size px  [default: 800]
   -ef, --search_ef INTEGER        HNSWlib search ef (higher -> more accurate,
                                   but slower)  [default: 50]
